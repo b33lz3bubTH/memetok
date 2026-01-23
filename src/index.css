@@ -2,104 +2,229 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dynamic theme colors - set via JS */
+    --theme-primary: 280 100% 60%;
+    --theme-secondary: 180 100% 50%;
+    --theme-text: 0 0% 100%;
+    --theme-background: 260 30% 6%;
+    --theme-accent: 330 100% 60%;
+    --theme-gradient: linear-gradient(135deg, hsl(280 100% 60%), hsl(330 100% 60%));
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Base shadcn variables mapped to theme */
+    --background: var(--theme-background);
+    --foreground: var(--theme-text);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: 260 30% 10%;
+    --card-foreground: var(--theme-text);
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: 260 30% 10%;
+    --popover-foreground: var(--theme-text);
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: var(--theme-primary);
+    --primary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: var(--theme-secondary);
+    --secondary-foreground: 0 0% 100%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 260 20% 18%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: var(--theme-accent);
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 260 20% 20%;
+    --input: 260 20% 20%;
+    --ring: var(--theme-primary);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Custom properties */
+    --glass-bg: 260 30% 10% / 0.8;
+    --overlay-gradient: linear-gradient(to top, hsl(0 0% 0% / 0.8) 0%, transparent 50%);
+    --sidebar-gradient: linear-gradient(to left, hsl(0 0% 0% / 0.3) 0%, transparent 100%);
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  /* Video container snap scrolling */
+  .video-feed-container {
+    @apply h-screen overflow-y-scroll hide-scrollbar;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+
+  .video-card {
+    @apply relative h-screen w-full;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    @apply backdrop-blur-xl border border-white/10;
+    background: hsl(var(--glass-bg));
+  }
+
+  /* Action button styles */
+  .action-btn {
+    @apply flex flex-col items-center justify-center gap-1 transition-all duration-200;
+  }
+
+  .action-btn-icon {
+    @apply w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200;
+    background: hsl(0 0% 100% / 0.1);
+    backdrop-filter: blur(10px);
+  }
+
+  .action-btn-icon:hover {
+    @apply scale-110;
+    background: hsl(0 0% 100% / 0.2);
+  }
+
+  .action-btn-icon:active {
+    @apply scale-95;
+  }
+
+  /* Sound disc animation */
+  .sound-disc {
+    @apply w-12 h-12 rounded-full border-2 flex items-center justify-center;
+    border-color: hsl(var(--theme-primary));
+    background: linear-gradient(135deg, hsl(var(--theme-primary) / 0.3), hsl(var(--theme-accent) / 0.3));
+  }
+
+  .sound-disc-rotating {
+    animation: spin 3s linear infinite;
+  }
+
+  .sound-disc-paused {
+    animation-play-state: paused;
+  }
+
+  /* Tag pill styles */
+  .tag-pill {
+    @apply px-2 py-0.5 rounded-full text-xs font-medium transition-colors;
+    background: hsl(var(--theme-primary) / 0.2);
+    color: hsl(var(--theme-primary));
+  }
+
+  .tag-pill:hover {
+    background: hsl(var(--theme-primary) / 0.3);
+  }
+
+  /* Comment drawer */
+  .comment-drawer {
+    @apply fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl;
+    background: hsl(var(--card));
+    height: 70vh;
+  }
+
+  /* Like burst container */
+  .like-burst-container {
+    @apply absolute inset-0 pointer-events-none overflow-hidden;
+  }
+
+  .like-particle {
+    @apply absolute w-2 h-2 rounded-full;
+    background: hsl(var(--theme-accent));
+  }
+
+  /* Play icon overlay */
+  .play-icon-overlay {
+    @apply absolute inset-0 flex items-center justify-center pointer-events-none z-10;
+  }
+
+  .play-icon {
+    @apply w-20 h-20 rounded-full flex items-center justify-center;
+    background: hsl(0 0% 0% / 0.5);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Loader */
+  .loader-container {
+    @apply fixed inset-0 flex items-center justify-center z-50;
+    background: hsl(var(--background));
+  }
+
+  .loader-spinner {
+    @apply w-12 h-12 rounded-full border-4 border-t-transparent animate-spin;
+    border-color: hsl(var(--theme-primary));
+    border-top-color: transparent;
+  }
+
+  /* Avatar */
+  .avatar-ring {
+    @apply w-14 h-14 rounded-full p-0.5;
+    background: var(--theme-gradient);
+  }
+
+  .avatar-inner {
+    @apply w-full h-full rounded-full bg-background overflow-hidden;
+  }
+}
+
+@layer utilities {
+  /* Gradient text */
+  .gradient-text {
+    background: var(--theme-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Heart filled state */
+  .heart-filled {
+    color: hsl(350 100% 60%);
+    fill: hsl(350 100% 60%);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(var(--theme-primary) / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(var(--theme-primary) / 0.8);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 }
