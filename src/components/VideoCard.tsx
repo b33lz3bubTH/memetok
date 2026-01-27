@@ -6,6 +6,7 @@ import { Volume2, VolumeX, Play, Loader2 } from 'lucide-react';
 import VideoSidebar from './VideoSidebar';
 import VideoOverlay from './VideoOverlay';
 import { PreloadStrategy } from '@/hooks/useVideoPreload';
+import { media as mediaApi } from '@/lib/api';
 
 interface VideoCardProps {
   video: VideoPost;
@@ -32,11 +33,13 @@ const VideoCard = ({
   const [canPlay, setCanPlay] = useState(false);
 
   const videoUrl = video.postVideos[0]?.videoUrl || '';
+  const isImage = video.mediaType === 'image';
+  const imageUrl = video.mediaId ? mediaApi.imageUrl(video.mediaId) : video.extras.thumbnail;
 
   // Track buffer progress
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || isImage) return;
 
     const handleProgress = () => {
       if (videoElement.buffered.length > 0) {
@@ -83,7 +86,13 @@ const VideoCard = ({
   // Play/pause based on active state
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || isImage) {
+      if (isActive) dispatch(setActiveVideoId(video.id));
+      setIsPlaying(false);
+      setIsBuffering(false);
+      setCanPlay(true);
+      return;
+    }
 
     if (isActive) {
       dispatch(setActiveVideoId(video.id));
@@ -93,7 +102,7 @@ const VideoCard = ({
       videoElement.pause();
       setIsPlaying(false);
     }
-  }, [isActive, dispatch, video.id]);
+  }, [isActive, dispatch, video.id, isImage]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -103,7 +112,7 @@ const VideoCard = ({
 
   const handleVideoClick = useCallback(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || isImage) return;
 
     if (videoElement.paused) {
       videoElement.play().catch(console.error);
@@ -115,7 +124,7 @@ const VideoCard = ({
       setShowLocalPlayIcon(true);
       setTimeout(() => setShowLocalPlayIcon(false), 1000);
     }
-  }, []);
+  }, [isImage]);
 
   const handleMuteToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -125,7 +134,7 @@ const VideoCard = ({
   return (
     <div className="video-card" data-index={dataIndex}>
       {/* Thumbnail backdrop while loading */}
-      {!canPlay && isActive && (
+      {!canPlay && isActive && !isImage && (
         <div className="absolute inset-0 z-10">
           <div 
             className="absolute inset-0 bg-cover bg-center"
@@ -138,20 +147,29 @@ const VideoCard = ({
         </div>
       )}
 
-      {/* Video Element */}
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        className="absolute inset-0 w-full h-full object-cover"
-        loop
-        muted={isMuted}
-        playsInline
-        preload={preloadStrategy}
-        onClick={handleVideoClick}
-      />
+      {/* Media Element */}
+      {isImage ? (
+        <img
+          src={imageUrl}
+          className="absolute inset-0 w-full h-full object-cover"
+          alt={video.title}
+          onClick={handleVideoClick}
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="absolute inset-0 w-full h-full object-cover"
+          loop
+          muted={isMuted}
+          playsInline
+          preload={preloadStrategy}
+          onClick={handleVideoClick}
+        />
+      )}
 
       {/* Buffer Progress Bar for Next Up video */}
-      {isNextUp && bufferProgress < 100 && (
+      {isNextUp && !isImage && bufferProgress < 100 && (
         <div className="absolute bottom-0 left-0 right-0 z-30 h-1 bg-white/20">
           <div 
             className="h-full bg-theme-primary transition-all duration-300 ease-out"
@@ -176,23 +194,25 @@ const VideoCard = ({
       )}
 
       {/* Buffering indicator for active video */}
-      {isActive && isBuffering && canPlay && (
+      {isActive && !isImage && isBuffering && canPlay && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
           <Loader2 className="w-8 h-8 text-white/80 animate-spin" />
         </div>
       )}
 
       {/* Mute Button */}
-      <button
-        onClick={handleMuteToggle}
-        className="absolute top-4 right-4 z-20 action-btn-icon"
-      >
-        {isMuted ? (
-          <VolumeX className="w-5 h-5 text-white" />
-        ) : (
-          <Volume2 className="w-5 h-5 text-white" />
-        )}
-      </button>
+      {!isImage && (
+        <button
+          onClick={handleMuteToggle}
+          className="absolute top-4 right-4 z-20 action-btn-icon"
+        >
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-white" />
+          ) : (
+            <Volume2 className="w-5 h-5 text-white" />
+          )}
+        </button>
+      )}
 
       {/* Right Sidebar Actions */}
       <VideoSidebar video={video} isPlaying={isPlaying} />

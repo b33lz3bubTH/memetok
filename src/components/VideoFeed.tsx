@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { initializeFeed, setCurrentVideoIndex } from '@/store/slices/feedSlice';
+import { fetchFeed, setCurrentVideoIndex } from '@/store/slices/feedSlice';
 import { initializeTheme } from '@/store/slices/themeSlice';
 import VideoCard from './VideoCard';
 import VideoPlaceholder from './VideoPlaceholder';
@@ -8,6 +8,7 @@ import CommentDrawer from './CommentDrawer';
 import Loader from './Loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
+import CreatePostButton from './CreatePostButton';
 
 const VideoFeed = () => {
   const dispatch = useAppDispatch();
@@ -22,7 +23,7 @@ const VideoFeed = () => {
   // Initialize theme and feed on mount
   useEffect(() => {
     dispatch(initializeTheme());
-    dispatch(initializeFeed());
+    dispatch(fetchFeed());
   }, [dispatch]);
 
   // Apply theme colors to CSS variables
@@ -122,6 +123,8 @@ const VideoFeed = () => {
           </div>
         </div>
       </div>
+
+      <CreatePostButton />
     </div>
   );
 };

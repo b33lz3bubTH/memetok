@@ -1,11 +1,13 @@
 import { useRef, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleLike } from '@/store/slices/feedSlice';
+import { setLikedState, setLikesCount, toggleLike } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
 import { Heart, MessageCircle, Share2, Music } from 'lucide-react';
 import gsap from 'gsap';
 import { animate } from 'animejs';
+import { postsApi } from '@/lib/api';
+import { SignInButton, SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 
 interface VideoSidebarProps {
   video: VideoPost;
@@ -28,8 +30,9 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const isLiked = likedVideos.includes(video.id);
   const heartRef = useRef<HTMLDivElement>(null);
   const burstContainerRef = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
 
-  const handleLike = useCallback(() => {
+  const handleLike = useCallback(async () => {
     dispatch(toggleLike(video.id));
 
     // GSAP bounce animation
@@ -71,7 +74,17 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         },
       });
     }
-  }, [dispatch, video.id, isLiked]);
+
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const res = await postsApi.toggleLike(video.id, token);
+      dispatch(setLikesCount({ videoId: video.id, likes: res.likes }));
+      dispatch(setLikedState({ videoId: video.id, liked: res.liked }));
+    } catch {
+      // ignore (optimistic state stays)
+    }
+  }, [dispatch, video.id, isLiked, getToken]);
 
   const handleComment = useCallback(() => {
     dispatch(openCommentDrawer(video.id));
@@ -101,20 +114,29 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       </div>
 
       {/* Like Button */}
-      <button className="action-btn" onClick={handleLike}>
-        <div ref={heartRef} className="action-btn-icon relative">
-          <Heart
-            className={`w-7 h-7 transition-colors ${
-              isLiked ? 'heart-filled' : 'text-white'
-            }`}
-            fill={isLiked ? 'currentColor' : 'none'}
-          />
-          <div ref={burstContainerRef} className="like-burst-container" />
-        </div>
-        <span className="text-white text-xs font-medium">
-          {formatNumber(video.stats.likes)}
-        </span>
-      </button>
+      <SignedOut>
+        <SignInButton mode="modal">
+          <button className="action-btn">
+            <div ref={heartRef} className="action-btn-icon relative">
+              <Heart className="w-7 h-7 transition-colors text-white" fill="none" />
+              <div ref={burstContainerRef} className="like-burst-container" />
+            </div>
+            <span className="text-white text-xs font-medium">{formatNumber(video.stats.likes)}</span>
+          </button>
+        </SignInButton>
+      </SignedOut>
+      <SignedIn>
+        <button className="action-btn" onClick={handleLike}>
+          <div ref={heartRef} className="action-btn-icon relative">
+            <Heart
+              className={`w-7 h-7 transition-colors ${isLiked ? 'heart-filled' : 'text-white'}`}
+              fill={isLiked ? 'currentColor' : 'none'}
+            />
+            <div ref={burstContainerRef} className="like-burst-container" />
+          </div>
+          <span className="text-white text-xs font-medium">{formatNumber(video.stats.likes)}</span>
+        </button>
+      </SignedIn>
 
       {/* Comment Button */}
       <button className="action-btn" onClick={handleComment}>

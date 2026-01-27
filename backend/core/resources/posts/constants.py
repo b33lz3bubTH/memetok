@@ -1,0 +1,4 @@
+POSTS_COLLECTION = "posts"
+COMMENTS_COLLECTION = "comments"
+LIKES_COLLECTION = "likes"
+
