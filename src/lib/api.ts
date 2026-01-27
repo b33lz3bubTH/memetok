@@ -2,10 +2,14 @@ import { env } from '@/lib/env';
 
 export type MediaType = 'video' | 'image';
 
+export type MediaItem = {
+  type: MediaType;
+  id: string;
+};
+
 export type Post = {
   id: string;
-  mediaId: string;
-  mediaType: MediaType;
+  media: MediaItem[];
   caption: string;
   description: string;
   tags: string[];
@@ -45,7 +49,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const media = {
   async uploadWithProgress(
-    file: File,
+    files: File[],
     opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
     metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string },
     token?: string
@@ -89,7 +93,9 @@ export const media = {
       }
 
       const fd = new FormData();
-      fd.append('file', file);
+      for (const file of files) {
+        fd.append('files', file);
+      }
       if (metadata) {
         fd.append('caption', metadata.caption);
         fd.append('description', metadata.description);
@@ -115,7 +121,7 @@ export const postsApi = {
   async list(take = 10, skip = 0) {
     return apiFetch<{ items: Post[]; take: number; skip: number }>(`/api/posts?take=${take}&skip=${skip}`);
   },
-  async create(input: { mediaId: string; mediaType: MediaType; caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string }, token: string) {
+  async create(input: { media: MediaItem[]; caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string }, token: string) {
     return apiFetch<Post>('/api/posts', {
       method: 'POST',
       body: JSON.stringify(input),

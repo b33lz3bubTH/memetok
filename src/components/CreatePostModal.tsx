@@ -108,7 +108,7 @@ export default function CreatePostModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const isUploadStepValid = files.length === 1 && !!mediaType;
+  const isUploadStepValid = files.length > 0 && !!mediaType && (hasVideo ? files.length === 1 : true);
   const isDetailsStepValid = title.trim().length > 0;
 
   const getMaxAllowedStepIdx = () => {
@@ -131,13 +131,21 @@ export default function CreatePostModal({
 
   const validateSelection = (picked: File[]) => {
     if (picked.length === 0) return { ok: false, reason: 'No file selected.' };
-    if (picked.length > 1) return { ok: false, reason: 'Only 1 file is allowed.' };
-    const file = picked[0]!;
-    const isVideo = isVideoFile(file);
-    const isImage = isImageFile(file);
-    if (!isVideo && !isImage) {
-      return { ok: false, reason: 'Only images and MP4 video are allowed.' };
+    
+    const videos = picked.filter(isVideoFile);
+    const images = picked.filter(isImageFile);
+    
+    if (videos.length > 1) return { ok: false, reason: 'Only one video is allowed per post.' };
+    if (videos.length > 0 && images.length > 0) return { ok: false, reason: 'Cannot mix videos and images in one post.' };
+    
+    for (const file of picked) {
+      const isVideo = isVideoFile(file);
+      const isImage = isImageFile(file);
+      if (!isVideo && !isImage) {
+        return { ok: false, reason: `File ${file.name} is not a valid image or MP4 video.` };
+      }
     }
+    
     return { ok: true as const };
   };
 
@@ -147,7 +155,7 @@ export default function CreatePostModal({
       toast({ title: 'Invalid selection', description: v.reason });
       return;
     }
-    setFiles(picked.slice(0, 1));
+    setFiles(picked);
     setError(null);
     setDoneCount(0);
   };
@@ -169,33 +177,26 @@ export default function CreatePostModal({
     abortRef.current = abort;
 
     try {
-      const total = files.length;
-      for (let i = 0; i < total; i++) {
-        const f = files[i]!;
-        await media.uploadWithProgress(
-          f,
-          {
-            signal: abort.signal,
-            onProgress: (pct) => {
-              const overall = ((i + pct / 100) / total) * 100;
-              setOverallPct(overall);
-            },
+      await media.uploadWithProgress(
+        files,
+        {
+          signal: abort.signal,
+          onProgress: (pct) => {
+            setOverallPct(pct);
           },
-          {
-            caption: title.trim(),
-            description: description.trim(),
-            tags,
-            username: user?.fullName || user?.username || undefined,
-            profilePhoto: user?.imageUrl || undefined,
-          },
-          token
-        );
-        setDoneCount((c) => c + 1);
-        setOverallPct(((i + 1) / total) * 100);
-      }
+        },
+        {
+          caption: title.trim(),
+          description: description.trim(),
+          tags,
+          username: user?.fullName || user?.username || undefined,
+          profilePhoto: user?.imageUrl || undefined,
+        },
+        token
+      );
 
       await dispatch(fetchFeed());
-      toast({ title: 'Posted', description: files.length > 1 ? `${files.length} posts created` : 'Your post is live' });
+      toast({ title: 'Posted', description: 'Your post is live' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       setError(msg);
@@ -225,7 +226,7 @@ export default function CreatePostModal({
     }
 
     return (
-      <div className="px-10">
+      <div className="px-4 sm:px-10">
         <Carousel opts={{ loop: true }}>
           <CarouselContent>
             {previews.map((p) => (
@@ -241,8 +242,8 @@ export default function CreatePostModal({
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
+          <CarouselPrevious className="hidden sm:flex" />
+          <CarouselNext className="hidden sm:flex" />
         </Carousel>
       </div>
     );
@@ -251,9 +252,9 @@ export default function CreatePostModal({
   return (
     <Dialog open={open} onOpenChange={(o) => (!isUploading ? onOpenChange(o) : undefined)}>
       <DialogContent className="p-0 overflow-hidden max-w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-        <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] flex-1 min-h-0">
           {/* Steps */}
-          <div className="border-b sm:border-b-0 sm:border-r bg-muted/30 p-4">
+          <div className="border-b lg:border-b-0 lg:border-r bg-muted/30 p-4">
             <div className="text-xs font-medium text-muted-foreground mb-3">Create post</div>
             <div className="space-y-2">
               {STEP_ORDER.map((s, idx) => {
@@ -303,7 +304,7 @@ export default function CreatePostModal({
                     <div className="min-w-0">
                     <div className="text-sm font-semibold">Upload media</div>
                       <div className="text-xs text-muted-foreground">
-                        1 file only. MP4 video or any image.
+                        {hasVideo ? '1 video only (MP4).' : 'Multiple images allowed.'}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -335,6 +336,7 @@ export default function CreatePostModal({
                     ref={fileInputRef}
                     type="file"
                     accept="video/mp4,image/*"
+                    multiple
                     className="hidden"
                     onChange={(e) => {
                       const picked = Array.from(e.target.files ?? []);

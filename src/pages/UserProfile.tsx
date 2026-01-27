@@ -104,24 +104,29 @@ const UserProfile = () => {
                   onClick={() => navigate(`/post/${post.id}`)}
                 >
                   <div className="relative w-full pt-[130%]">
-                    {post.mediaType === 'video' ? (
-                      <>
+                    {(() => {
+                      const mediaItems = post.media || (post.mediaId ? [{ type: post.mediaType || 'image', id: post.mediaId }] : []);
+                      const firstMedia = mediaItems[0];
+                      const isVideo = firstMedia?.type === 'video';
+                      return isVideo ? (
+                        <>
+                          <img
+                            src={firstMedia ? media.thumbUrl(firstMedia.id) : ''}
+                            alt={post.caption}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
+                            <Video className="w-3 h-3 text-white" />
+                          </div>
+                        </>
+                      ) : (
                         <img
-                          src={media.thumbUrl(post.mediaId)}
+                          src={firstMedia ? media.imageUrl(firstMedia.id) : ''}
                           alt={post.caption}
                           className="absolute inset-0 w-full h-full object-cover"
                         />
-                        <div className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
-                          <Video className="w-3 h-3 text-white" />
-                        </div>
-                      </>
-                    ) : (
-                      <img
-                        src={media.imageUrl(post.mediaId)}
-                        alt={post.caption}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    )}
+                      );
+                    })()}
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
                       <p className="text-[11px] text-white font-medium line-clamp-1">

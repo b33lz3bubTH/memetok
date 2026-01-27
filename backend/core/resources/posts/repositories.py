@@ -57,6 +57,10 @@ class PostsRepository:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].update_one({"id": post_id}, {"$set": {"status": status}})
 
+    async def update_media(self, post_id: str, media_items: List[Dict[str, Any]]) -> None:
+        mongo = get_mongo()
+        await mongo.db[POSTS_COLLECTION].update_one({"id": post_id}, {"$set": {"media": media_items}})
+
     async def inc_counts(self, post_id: str, likes_delta: int = 0, comments_delta: int = 0) -> Dict[str, Any] | None:
         mongo = get_mongo()
         update: Dict[str, Any] = {"$inc": {}}

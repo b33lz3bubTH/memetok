@@ -7,6 +7,7 @@ import VideoSidebar from './VideoSidebar';
 import VideoOverlay from './VideoOverlay';
 import { PreloadStrategy } from '@/hooks/useVideoPreload';
 import { media as mediaApi } from '@/lib/api';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface VideoCardProps {
   video: VideoPost;
@@ -33,8 +34,12 @@ const VideoCard = ({
   const [canPlay, setCanPlay] = useState(false);
 
   const videoUrl = video.postVideos[0]?.videoUrl || '';
-  const isImage = video.mediaType === 'image';
-  const imageUrl = video.mediaId ? mediaApi.imageUrl(video.mediaId) : video.extras.thumbnail;
+  const mediaItems = video.media || (video.mediaId ? [{ type: video.mediaType || 'image', id: video.mediaId }] : []);
+  const firstMedia = mediaItems[0];
+  const isImage = firstMedia?.type === 'image' || video.mediaType === 'image';
+  const imageItems = mediaItems.filter(m => m.type === 'image');
+  const hasMultipleImages = imageItems.length > 1;
+  const imageUrl = firstMedia && firstMedia.type === 'image' ? mediaApi.imageUrl(firstMedia.id) : (video.mediaId ? mediaApi.imageUrl(video.mediaId) : video.extras.thumbnail);
 
   // Track buffer progress
   useEffect(() => {
@@ -149,12 +154,32 @@ const VideoCard = ({
 
       {/* Media Element */}
       {isImage ? (
-        <img
-          src={imageUrl}
-          className="absolute inset-0 w-full h-full object-cover"
-          alt={video.title}
-          onClick={handleVideoClick}
-        />
+        hasMultipleImages ? (
+          <div className="absolute inset-0 w-full h-screen flex items-center justify-center">
+            <Carousel opts={{ loop: true }} className="w-full h-screen">
+              <CarouselContent className="h-screen -ml-0">
+                {imageItems.map((item) => (
+                  <CarouselItem key={item.id} className="h-screen pl-0 basis-full">
+                    <img
+                      src={mediaApi.imageUrl(item.id)}
+                      className="w-full h-screen object-contain"
+                      alt={video.title}
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-2 opacity-70 hover:opacity-100" />
+              <CarouselNext className="right-2 opacity-70 hover:opacity-100" />
+            </Carousel>
+          </div>
+        ) : (
+          <img
+            src={imageUrl}
+            className="absolute inset-0 w-full h-full object-cover"
+            alt={video.title}
+            onClick={handleVideoClick}
+          />
+        )
       ) : (
         <video
           ref={videoRef}

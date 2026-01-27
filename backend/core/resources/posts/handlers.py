@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import tempfile
+from pathlib import Path
+from typing import List
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from pymongo.errors import PyMongoError
 
@@ -15,11 +22,13 @@ from core.resources.posts.dtos import (
     CreatePostRequest,
     PostStatsResponse,
     PostDTO,
+    MediaItem,
 )
 from core.resources.posts.exceptions import PostNotFoundError
+from core.resources.posts.pipeline import PipelineContext
+from core.resources.posts.pipeline_shared import get_shared_pipeline
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 from core.resources.posts.service import PostsService
-from core.services.streamlander.client import StreamlanderClient
 
 
 router = APIRouter(tags=["posts"])
@@ -56,7 +65,7 @@ async def list_posts(
 
 @router.post("/posts/upload")
 async def upload_and_create_post(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     caption: str = Form(default="", max_length=300),
     description: str = Form(default="", max_length=1000),
     tags: str = Form(default=""),
@@ -65,66 +74,42 @@ async def upload_and_create_post(
     user=Depends(get_current_user),
 ):
     """
-    Upload a file to streamlander, create a post in the database, and queue verification.
-    This endpoint prevents direct access to streamlander and allows for rate limiting.
+    Save files to tmp, create post with pending status, and enqueue async upload pipeline.
+    Returns immediately with pending status.
     """
-    logger.info("upload_and_create_post user_id=%s filename=%s", user.user_id, file.filename)
+    if not files or len(files) == 0:
+        raise HTTPException(status_code=400, detail="At least one file is required")
     
-    # Validate file type
-    content_type = file.content_type or ""
-    is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
-    is_image = content_type.startswith("image/")
+    logger.info("upload_and_create_post user_id=%s file_count=%s", user.user_id, len(files))
     
-    if not is_video and not is_image:
-        raise HTTPException(status_code=400, detail="Only MP4 videos and images are allowed")
+    # Validate files
+    videos = []
+    images = []
+    for file in files:
+        content_type = file.content_type or ""
+        is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
+        is_image = content_type.startswith("image/")
+        
+        if not is_video and not is_image:
+            raise HTTPException(status_code=400, detail=f"File {file.filename} is not a valid MP4 video or image")
+        
+        if is_video:
+            videos.append(file)
+        else:
+            images.append(file)
     
-    media_type = "video" if is_video else "image"
-    
-    # Read file content
-    try:
-        file_content = await file.read()
-    except Exception as e:
-        logger.exception("failed to read uploaded file")
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
-    
-    # Upload to streamlander
-    # Ensure filename has proper extension for streamlander validation
-    upload_filename = file.filename or "upload"
-    if not upload_filename:
-        upload_filename = f"upload.{'mp4' if is_video else 'jpg'}"
-    elif not any(upload_filename.lower().endswith(ext) for ext in ['.mp4', '.jpg', '.jpeg', '.png']):
-        # Add extension if missing
-        ext = '.mp4' if is_video else '.jpg'
-        upload_filename = f"{upload_filename}{ext}"
-    
-    logger.info("uploading to streamlander filename=%s content_type=%s size=%d", upload_filename, content_type, len(file_content))
-    
-    streamlander_client = StreamlanderClient()
-    try:
-        upload_result = await streamlander_client.upload(
-            filename=upload_filename,
-            content_type=content_type,
-            data=file_content,
-        )
-        media_id = upload_result.get("id")
-        if not media_id:
-            logger.error("streamlander did not return a media ID in response: %s", upload_result)
-            raise HTTPException(status_code=500, detail="Streamlander did not return a media ID")
-        logger.info("streamlander upload success media_id=%s", media_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("failed to upload to streamlander filename=%s", upload_filename)
-        raise HTTPException(status_code=500, detail=f"Failed to upload to streamlander: {str(e)}")
+    # Validate: videos can only be solo, images can be multiple
+    if len(videos) > 1:
+        raise HTTPException(status_code=400, detail="Only one video is allowed per post")
+    if len(videos) > 0 and len(images) > 0:
+        raise HTTPException(status_code=400, detail="Cannot mix videos and images in one post")
     
     # Parse tags
     tag_list = [t.strip() for t in tags.split(",") if t.strip()][:20]
     
-    # Create post in database and queue verification
+    # Create post with pending status (no media yet)
     post = await _svc.create_post(
         user_id=user.user_id,
-        media_id=media_id,
-        media_type=media_type,
         caption=caption,
         description=description,
         tags=tag_list,
@@ -132,17 +117,61 @@ async def upload_and_create_post(
         profile_photo=profilePhoto,
     )
     
-    logger.info("upload_and_create_post success post_id=%s media_id=%s", post.id, media_id)
+    # Save files to tmp directory
+    tmp_base = Path(tempfile.gettempdir()) / "memetok_uploads"
+    tmp_base.mkdir(parents=True, exist_ok=True)
+    tmp_dir = tmp_base / str(uuid4())
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_infos = []
+    for file in files:
+        content_type = file.content_type or ""
+        is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
+        media_type = "video" if is_video else "image"
+        
+        filename = file.filename or f"upload.{'mp4' if is_video else 'jpg'}"
+        if not any(filename.lower().endswith(ext) for ext in ['.mp4', '.jpg', '.jpeg', '.png']):
+            ext = '.mp4' if is_video else '.jpg'
+            filename = f"{filename}{ext}"
+        
+        file_path = tmp_dir / filename
+        
+        try:
+            file_content = await file.read()
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+            
+            file_infos.append({
+                "path": str(file_path),
+                "filename": filename,
+                "content_type": content_type,
+                "media_type": media_type,
+            })
+            logger.info("saved file to tmp post_id=%s filename=%s size=%d", post.id, filename, len(file_content))
+        except Exception as e:
+            logger.exception("failed to save file to tmp post_id=%s filename=%s", post.id, filename)
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Create pipeline context and enqueue
+    context = PipelineContext(
+        post_id=post.id,
+        user_id=user.user_id,
+        files=file_infos,
+        tmp_dir=str(tmp_dir),
+    )
+    
+    pipeline = get_shared_pipeline()
+    await pipeline.enqueue(context)
+    
+    logger.info("upload_and_create_post enqueued post_id=%s", post.id)
     return post
 
 
 @router.post("/posts")
 async def create_post(req: CreatePostRequest, user=Depends(get_current_user)):
-    logger.info("create_post user_id=%s media_id=%s media_type=%s", user.user_id, req.mediaId, req.mediaType)
+    logger.info("create_post user_id=%s", user.user_id)
     post = await _svc.create_post(
         user_id=user.user_id,
-        media_id=req.mediaId,
-        media_type=req.mediaType,
         caption=req.caption,
         description=req.description,
         tags=req.tags,

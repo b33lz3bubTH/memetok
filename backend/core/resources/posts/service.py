@@ -7,7 +7,7 @@ from uuid import uuid4
 from common.app_constants import POST_STATUS_PENDING
 from database.mongo_common import now_utc
 from core.resources.jobs.service import JobsService
-from core.resources.posts.dtos import CommentDTO, MediaType, PostDTO, PostListDTO, PostStatsDTO
+from core.resources.posts.dtos import CommentDTO, MediaType, MediaItem, PostDTO, PostListDTO, PostStatsDTO
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 from core.resources.posts.validators import normalize_tags
@@ -24,7 +24,7 @@ class PostsService:
     comments_repo: CommentsRepository
     jobs_service: JobsService
 
-    async def create_post(self, user_id: str, media_id: str, media_type: MediaType, caption: str, description: str, tags: list[str], username: str | None = None, profile_photo: str | None = None) -> PostDTO:
+    async def create_post(self, user_id: str, caption: str, description: str, tags: list[str], username: str | None = None, profile_photo: str | None = None) -> PostDTO:
         now = now_utc()
         post_id = str(uuid4())
         author = {"userId": user_id}
@@ -34,8 +34,7 @@ class PostsService:
             author["profilePhoto"] = profile_photo
         doc = {
             "id": post_id,
-            "mediaId": media_id,
-            "mediaType": media_type,
+            "media": [],
             "caption": caption,
             "description": description,
             "tags": normalize_tags(tags),
@@ -45,8 +44,7 @@ class PostsService:
             "stats": {"likes": 0, "comments": 0},
         }
         await self.posts_repo.insert(doc)
-        logger.info("post created (pending) post_id=%s media_id=%s media_type=%s user_id=%s", post_id, media_id, media_type, user_id)
-        await self.jobs_service.enqueue_verify_media(post_id=post_id, media_id=media_id, media_type=media_type)
+        logger.info("post created (pending) post_id=%s user_id=%s", post_id, user_id)
         return PostDTO.model_validate(doc)
 
     async def list_posts(self, take: int, skip: int) -> List[PostListDTO]:

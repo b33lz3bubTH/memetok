@@ -15,23 +15,27 @@ const toVideoPost = (p: Post, stats?: { likes: number; comments: number }): Vide
   const defaultStats = stats || { likes: 0, comments: 0 };
   const username = p.author?.username || (p.author?.userId ? `user_${p.author.userId.slice(-6)}` : 'user');
   const avatar = p.author?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
+  
+  const mediaItems = p.media || (p.mediaId ? [{ type: p.mediaType || 'image', id: p.mediaId }] : []);
+  const firstMedia = mediaItems[0];
+  const isVideo = firstMedia?.type === 'video';
+  
   return {
     id: p.id,
-    mediaId: p.mediaId,
-    mediaType: p.mediaType,
+    media: mediaItems,
+    mediaId: firstMedia?.id,
+    mediaType: firstMedia?.type,
     url: `/post/${p.id}`,
     title: p.caption?.slice(0, 24) || 'Post',
     description: p.description || p.caption || '',
     extras: {
       tags: p.tags || [],
       title: p.caption?.slice(0, 40) || 'Post',
-      thumbnail: media.thumbUrl(p.mediaId),
+      thumbnail: firstMedia ? (isVideo ? media.thumbUrl(firstMedia.id) : media.imageUrl(firstMedia.id)) : '',
     },
-    postVideos: [
-      {
-        videoUrl: p.mediaType === 'video' ? media.videoUrl(p.mediaId) : '',
-      },
-    ],
+    postVideos: mediaItems
+      .filter(m => m.type === 'video')
+      .map(m => ({ videoUrl: media.videoUrl(m.id) })),
     stats: {
       likes: defaultStats.likes,
       comments: defaultStats.comments,

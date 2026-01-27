@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,9 +9,12 @@ from pydantic import BaseModel, Field
 MediaType = Literal["video", "image"]
 
 
+class MediaItem(BaseModel):
+    type: MediaType
+    id: str
+
+
 class CreatePostRequest(BaseModel):
-    mediaId: str = Field(min_length=1)
-    mediaType: MediaType
     caption: str = Field(default="", max_length=300)
     description: str = Field(default="", max_length=1000)
     tags: List[str] = Field(default_factory=list, max_length=20)
@@ -32,8 +35,7 @@ class StatsDTO(BaseModel):
 
 class PostDTO(BaseModel):
     id: str
-    mediaId: str
-    mediaType: MediaType
+    media: List[MediaItem]
     caption: str
     description: str
     tags: List[str]
@@ -51,8 +53,7 @@ class PostStatsDTO(BaseModel):
 
 class PostListDTO(BaseModel):
     id: str
-    mediaId: str
-    mediaType: MediaType
+    media: List[MediaItem]
     caption: str
     description: str = ""
     tags: List[str]

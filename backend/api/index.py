@@ -11,6 +11,7 @@ from core.services.dispatch.handlers import router as dispatch_router
 from core.resources.posts.handlers import router as posts_router
 from core.resources.jobs.handlers import router as jobs_router
 from core.resources.jobs.shared import get_shared_jobs_service
+from core.resources.posts.pipeline_shared import get_shared_pipeline
 
 
 logger = get_logger(__name__)
@@ -21,9 +22,17 @@ async def lifespan(app: FastAPI):
     jobs_service = get_shared_jobs_service()
     jobs_service.start_worker()
     logger.info("background queue worker started")
+    
+    pipeline = get_shared_pipeline()
+    logger.info("upload pipeline workers started")
+    
     yield
+    
     await jobs_service.stop_worker()
     logger.info("background queue worker stopped")
+    
+    await pipeline.stop_workers()
+    logger.info("upload pipeline workers stopped")
 
 
 def create_app() -> FastAPI:

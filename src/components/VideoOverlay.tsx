@@ -21,9 +21,9 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
       />
 
       {/* Content */}
-      <div className="relative z-10">
+      <div className="relative z-10 text-left">
         {/* Username */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-start justify-start gap-2 mb-2">
           <span className="text-white font-bold text-base">
             @{video.author.username}
           </span>
@@ -42,7 +42,7 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
         )}
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 justify-start">
           {video.extras.tags.slice(0, 4).map((tag, index) => (
             <span key={index} className="tag-pill">
               {tag}
