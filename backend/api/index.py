@@ -29,12 +29,18 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="memetok-backend", version="0.1.0", lifespan=lifespan)
 
+    # When allow_origins is ["*"], allow_credentials must be False
+    # Otherwise, we can use allow_credentials=True with specific origins
+    cors_origins = settings.cors_allow_origins
+    use_credentials = cors_origins != ["*"] and len(cors_origins) > 0
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_allow_origins,
-        allow_credentials=False,
+        allow_origins=cors_origins,
+        allow_credentials=use_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     app.include_router(dispatch_router, prefix="/api")

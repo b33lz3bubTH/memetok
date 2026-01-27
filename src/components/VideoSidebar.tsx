@@ -8,6 +8,7 @@ import gsap from 'gsap';
 import { animate } from 'animejs';
 import { postsApi } from '@/lib/api';
 import { SignInButton, SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
+import ShareModal from './ShareModal';
 
 interface VideoSidebarProps {
   video: VideoPost;
@@ -33,6 +34,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const { getToken } = useAuth();
 
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   useEffect(() => {
     if (!statsLoaded) {
@@ -101,14 +103,8 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   }, [dispatch, video.id]);
 
   const handleShare = useCallback(() => {
-    if (navigator.share) {
-      navigator.share({
-        title: video.extras.title,
-        text: video.description,
-        url: window.location.href,
-      }).catch(console.error);
-    }
-  }, [video]);
+    setShareModalOpen(true);
+  }, []);
 
   return (
     <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center gap-5">
@@ -166,6 +162,13 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       >
         <Music className="w-5 h-5 text-white" />
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        postId={video.id}
+      />
     </div>
   );
 };
