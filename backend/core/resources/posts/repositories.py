@@ -8,6 +8,7 @@ from pymongo import ReturnDocument
 
 from database.mongo_factory import get_mongo
 from core.resources.posts.constants import COMMENTS_COLLECTION, LIKES_COLLECTION, POSTS_COLLECTION
+from common.app_constants import POST_STATUS_POSTED
 
 
 @dataclass
@@ -16,11 +17,16 @@ class PostsRepository:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].insert_one(doc)
 
+    async def count_posts(self) -> int:
+        mongo = get_mongo()
+        count = await mongo.db[POSTS_COLLECTION].count_documents({})
+        return count
+
     async def find_latest_posted(self, take: int, skip: int) -> List[Dict[str, Any]]:
         mongo = get_mongo()
         cursor = (
             mongo.db[POSTS_COLLECTION]
-            .find({"status": "posted"})
+            .find({"status": POST_STATUS_POSTED})
             .sort("createdAt", -1)
             .skip(skip)
             .limit(take)

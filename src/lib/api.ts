@@ -38,12 +38,48 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const media = {
-  async upload(file: File) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(`${apiBase}/api/media/upload`, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error(await res.text());
-    return (await res.json()) as { id: string; stored_name?: string; status?: string };
+  async uploadWithProgress(
+    file: File,
+    opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
+  ): Promise<{ id: string; stored_name?: string; status?: string }> {
+    const streamlanderBase = env.streamlanderBaseUrl.replace(/\/$/, '');
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${streamlanderBase}/upload`);
+      xhr.responseType = 'json';
+
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const pct = Math.max(0, Math.min(100, (e.loaded / e.total) * 100));
+        opts?.onProgress?.(pct);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve((xhr.response ?? {}) as { id: string; stored_name?: string; status?: string });
+          return;
+        }
+        const msg =
+          typeof xhr.response === 'string'
+            ? xhr.response
+            : (xhr.response as any)?.detail || xhr.responseText || `upload failed (${xhr.status})`;
+        reject(new Error(msg));
+      };
+      xhr.onerror = () => reject(new Error('upload failed'));
+      xhr.onabort = () => reject(new Error('upload aborted'));
+
+      if (opts?.signal) {
+        if (opts.signal.aborted) {
+          xhr.abort();
+          return;
+        }
+        opts.signal.addEventListener('abort', () => xhr.abort(), { once: true });
+      }
+
+      const fd = new FormData();
+      fd.append('file', file);
+      xhr.send(fd);
+    });
   },
   videoUrl(mediaId: string) {
     return `${env.streamlanderBaseUrl.replace(/\/$/, '')}/stream/${mediaId}`;

@@ -75,30 +75,35 @@ const VideoFeed = () => {
       <div className="w-full max-w-[450px] h-full relative">
         {/* Video Feed */}
         <div ref={containerRef} className="video-feed-container">
-          {renderConfigs.map((config) => {
-            // Render placeholder for unmounted videos
-            if (!config.shouldMount) {
+          {videos.length === 0 ? (
+            <div className="h-full w-full flex items-center justify-center p-6">
+              <div className="glass rounded-2xl p-6 text-center max-w-sm">
+                <div className="text-lg font-semibold text-white mb-1">No posts yet</div>
+                <div className="text-sm text-white/70">
+                  Be the first one to post. Tap <span className="font-semibold">+</span> to upload.
+                </div>
+              </div>
+            </div>
+          ) : (
+            renderConfigs.map((config) => {
+              // Render placeholder for unmounted videos
+              if (!config.shouldMount) {
+                return <VideoPlaceholder key={config.video.id} video={config.video} dataIndex={config.index} />;
+              }
+
+              // Render actual video component
               return (
-                <VideoPlaceholder
+                <VideoCard
                   key={config.video.id}
                   video={config.video}
+                  isActive={config.isActive}
                   dataIndex={config.index}
+                  preloadStrategy={config.preloadStrategy}
+                  isNextUp={config.isNextUp}
                 />
               );
-            }
-
-            // Render actual video component
-            return (
-              <VideoCard
-                key={config.video.id}
-                video={config.video}
-                isActive={config.isActive}
-                dataIndex={config.index}
-                preloadStrategy={config.preloadStrategy}
-                isNextUp={config.isNextUp}
-              />
-            );
-          })}
+            })
+          )}
         </div>
 
         {/* Comment Drawer */}
@@ -115,14 +120,16 @@ const VideoFeed = () => {
       </div>
 
       {/* Preload Status Debug (dev only) */}
-      <div className="fixed bottom-4 left-4 z-50">
-        <div className="glass px-3 py-2 rounded-lg text-xs text-white/60 font-mono space-y-1">
-          <div>Current: {visibleVideoIndex}</div>
-          <div>
-            Mounted: [{renderConfigs.filter(c => c.shouldMount).map(c => c.index).join(', ')}]
+      {videos.length > 0 && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <div className="glass px-3 py-2 rounded-lg text-xs text-white/60 font-mono space-y-1">
+            <div>Current: {visibleVideoIndex}</div>
+            <div>
+              Mounted: [{renderConfigs.filter((c) => c.shouldMount).map((c) => c.index).join(', ')}]
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <CreatePostButton />
     </div>

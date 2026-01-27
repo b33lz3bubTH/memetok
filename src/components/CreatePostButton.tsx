@@ -1,56 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
-import { SignInButton, SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
-import { media, postsApi } from '@/lib/api';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { SignInButton, SignedIn, SignedOut } from '@clerk/clerk-react';
+import CreatePostModal from '@/components/CreatePostModal';
 
 export default function CreatePostButton() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { getToken } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handlePick = useCallback(() => {
-    inputRef.current?.click();
-  }, []);
-
-  const handleFile = useCallback(
-    async (file: File) => {
-      setIsUploading(true);
-      try {
-        const up = await media.upload(file);
-        const caption = window.prompt('Caption?') ?? '';
-        const tagsRaw = window.prompt('Tags? (comma separated)') ?? '';
-        const tags = tagsRaw
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean);
-
-        const token = await getToken();
-        if (!token) return;
-        await postsApi.create(
-          { mediaId: up.id, mediaType: file.type.startsWith('image/') ? 'image' : 'video', caption, tags },
-          token
-        );
-      } finally {
-        setIsUploading(false);
-      }
-    },
-    [getToken]
-  );
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/mp4,image/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void handleFile(f);
-          e.target.value = '';
-        }}
-      />
-
       <SignedOut>
         <SignInButton mode="modal">
           <button className="glass w-14 h-14 rounded-full flex items-center justify-center">
@@ -61,12 +18,12 @@ export default function CreatePostButton() {
 
       <SignedIn>
         <button
-          onClick={handlePick}
-          disabled={isUploading}
+          onClick={() => setOpen(true)}
           className="glass w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-60"
         >
-          {isUploading ? <Loader2 className="w-7 h-7 text-white animate-spin" /> : <Plus className="w-7 h-7 text-white" />}
+          <Plus className="w-7 h-7 text-white" />
         </button>
+        <CreatePostModal open={open} onOpenChange={setOpen} />
       </SignedIn>
     </div>
   );

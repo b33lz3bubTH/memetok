@@ -11,6 +11,10 @@ from core.resources.posts.dtos import CommentDTO, MediaType, PostDTO
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 from core.resources.posts.validators import normalize_tags
+from core.logger.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -35,11 +39,17 @@ class PostsService:
             "stats": {"likes": 0, "comments": 0},
         }
         await self.posts_repo.insert(doc)
-        await self.jobs_service.enqueue_verify_media(post_id=post_id, media_id=media_id)
+        logger.info("post created (pending) post_id=%s media_id=%s media_type=%s user_id=%s", post_id, media_id, media_type, user_id)
+        await self.jobs_service.enqueue_verify_media(post_id=post_id, media_id=media_id, media_type=media_type)
         return PostDTO.model_validate(doc)
 
     async def list_posts(self, take: int, skip: int) -> List[PostDTO]:
         docs = await self.posts_repo.find_latest_posted(take=take, skip=skip)
+        logger.info("list_posts ok take=%s skip=%s count=%s", take, skip, len(docs))
+
+
+        total_pots = await self.posts_repo.count_posts()
+        logger.info("list_posts ok take=%s skip=%s count=%s total_pots=%s", take, skip, len(docs), total_pots)
         return [PostDTO.model_validate(d) for d in docs]
 
     async def toggle_like(self, post_id: str, user_id: str) -> tuple[bool, int]:

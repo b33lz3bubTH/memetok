@@ -1,112 +1,72 @@
-(index):1 Access to fetch at 'http://localhost:8000/api/posts?take=20&skip=0' from origin 'http://192.168.1.2:8081' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-api.ts:29  GET http://localhost:8000/api/posts?take=20&skip=0 net::ERR_FAILED 500 (Internal Server Error)
+{
+    "items": [
+        {
+            "id": "82f78148-f266-4c68-9f9b-9242a41b84a6",
+            "mediaId": "f014263b-d241-4edf-b1af-68da23f81d43",
+            "mediaType": "video",
+            "caption": "catoooo",
+            "tags": [
+                "#yahooo",
+                "#rock"
+            ],
+            "status": "posted",
+            "createdAt": "2026-01-27T08:35:41.349000",
+            "author": {
+                "userId": "user_387SL7hbi6d69MVR4PVlwudAWYf"
+            },
+            "stats": {
+                "likes": 0,
+                "comments": 0
+            }
+        },
+        {
+            "id": "fa88d1be-d8d6-48ba-b5b4-69bd1c4a6467",
+            "mediaId": "12b71569-5080-4448-923a-738d050ce665",
+            "mediaType": "video",
+            "caption": "Bounce",
+            "tags": [
+                "#pandey",
+                "#whore"
+            ],
+            "status": "posted",
+            "createdAt": "2026-01-27T08:29:02.509000",
+            "author": {
+                "userId": "dev-user"
+            },
+            "stats": {
+                "likes": 1,
+                "comments": 0
+            }
+        },
+        {
+            "id": "2012552b-b2d6-416e-aa6c-31b74749ac94",
+            "mediaId": "dca5a128-d147-457b-b4fb-35632505932f",
+            "mediaType": "image",
+            "caption": "Bounce 33",
+            "tags": [
+                "#meme",
+                "#cats"
+            ],
+            "status": "posted",
+            "createdAt": "2026-01-27T08:27:35.679000",
+            "author": {
+                "userId": "dev-user"
+            },
+            "stats": {
+                "likes": 0,
+                "comments": 0
+            }
+        }
+    ],
+    "take": 20,
+    "skip": 0
+}
 
+need some optimization, dont pull likes and other things,
+when the comment section is pulled, that time pull the data, create a local state, add the data there, so it doesnt fetch always.
+use indexdb at frontend to cache this, create separte cqrs queries for it to work, else, its not a good thing.
 
-Traceback (most recent call last):
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 401, in run_asgi
-    result = await app(  # type: ignore[func-returns-value]
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 70, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
-    await super().__call__(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
-    raise exc
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
-    await self.app(scope, receive, _send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
-    await self.simple_response(scope, receive, send, request_headers=headers)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
-    await self.app(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
-    await route.handle(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
-    await self.app(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
-    response = await f(request)
-               ^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
-    raw_response = await run_endpoint_function(
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/core/resources/posts/handlers.py", line 48, in list_posts
-    items = await _svc.list_posts(take=take, skip=skip)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/core/resources/posts/service.py", line 42, in list_posts
-    docs = await self.posts_repo.find_latest_posted(take=take, skip=skip)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/core/resources/posts/repositories.py", line 28, in find_latest_posted
-    return [d async for d in cursor]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/core/resources/posts/repositories.py", line 28, in <listcomp>
-    return [d async for d in cursor]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/motor/core.py", line 1425, in next
-    if self.alive and (self._buffer_size() or await self._get_more()):
-                                              ^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/.nix-profile/lib/python3.11/concurrent/futures/thread.py", line 58, in run
-    result = self.fn(*self.args, **self.kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/cursor.py", line 1205, in _refresh
-    self._send_message(q)
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/cursor.py", line 1100, in _send_message
-    response = client._run_operation(
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/_csot.py", line 120, in csot_wrapper
-    return func(self, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 1754, in _run_operation
-    return self._retryable_read(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 1863, in _retryable_read
-    return self._retry_internal(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/_csot.py", line 120, in csot_wrapper
-    return func(self, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 1830, in _retry_internal
-    ).run()
-      ^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 2554, in run
-    return self._read() if self._is_read else self._write()
-           ^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 2689, in _read
-    self._server = self._get_server()
-                   ^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 2645, in _get_server
-    return self._client._select_server(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 1649, in _select_server
-    server = topology.select_server(
-             ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/topology.py", line 398, in select_server
-    server = self._select_server(
-             ^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/topology.py", line 376, in _select_server
-    servers = self.select_servers(
-              ^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/topology.py", line 283, in select_servers
-    server_descriptions = self._select_servers_loop(
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/sourav/Documents/memetok/backend/.venv/lib/python3.11/site-packages/pymongo/synchronous/topology.py", line 333, in _select_servers_loop
-    raise ServerSelectionTimeoutError(
-pymongo.errors.ServerSelectionTimeoutError: localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 69786adf8ed302dfa264cdbc, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None, error=AutoReconnect('localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
+save user name, and other things as well, so that i can show who uploaded that, save the profile photo.
+and the current user who is logged in show his profile at the top of the page, floating, via clerk.
+backend has to be just fetch post, no joining and other things, else the system will slow massively.
+save post description with posts, while viewing the vide show only two lines of the posts description if not there dont show, when comments is open then only show the full description.
