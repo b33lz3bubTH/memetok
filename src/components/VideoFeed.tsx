@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchFeed, setCurrentVideoIndex } from '@/store/slices/feedSlice';
+import { fetchFeed, fetchMoreFeed, setCurrentVideoIndex } from '@/store/slices/feedSlice';
 import { initializeTheme } from '@/store/slices/themeSlice';
 import VideoCard from './VideoCard';
 import VideoPlaceholder from './VideoPlaceholder';
@@ -13,10 +13,11 @@ import UserProfile from './UserProfile';
 
 const VideoFeed = () => {
   const dispatch = useAppDispatch();
-  const { videos, isLoading, currentVideoIndex } = useAppSelector((state) => state.feed);
+  const { videos, isLoading, isLoadingMore, skip, hasMore, currentVideoIndex } = useAppSelector((state) => state.feed);
   const { currentTheme } = useAppSelector((state) => state.theme);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleVideoIndex, setVisibleVideoIndex] = useState(0);
+  const fetchingRef = useRef(false);
 
   // Use the preload hook for virtualized rendering
   const { renderConfigs } = useVideoPreload(videos, visibleVideoIndex);
@@ -24,8 +25,28 @@ const VideoFeed = () => {
   // Initialize theme and feed on mount
   useEffect(() => {
     dispatch(initializeTheme());
-    dispatch(fetchFeed());
+    dispatch(fetchFeed(APP_CONFIG.initialPostsToFetch));
   }, [dispatch]);
+
+  // Load more when approaching the end
+  const loadMore = useCallback(() => {
+    if (fetchingRef.current || !hasMore || isLoadingMore) return;
+    
+    fetchingRef.current = true;
+    dispatch(fetchMoreFeed({ take: APP_CONFIG.postsPerPage, skip })).finally(() => {
+      fetchingRef.current = false;
+    });
+  }, [dispatch, skip, hasMore, isLoadingMore]);
+
+  // Check if we need to load more when visible index changes
+  useEffect(() => {
+    if (videos.length === 0 || !hasMore) return;
+    
+    const threshold = videos.length - 1;
+    if (visibleVideoIndex >= threshold && !fetchingRef.current) {
+      loadMore();
+    }
+  }, [visibleVideoIndex, videos.length, hasMore, loadMore]);
 
   // Apply theme colors to CSS variables
   useEffect(() => {

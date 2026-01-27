@@ -175,7 +175,7 @@ const VideoCard = ({
         ) : (
           <img
             src={imageUrl}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-contain"
             alt={video.title}
             onClick={handleVideoClick}
           />
@@ -184,7 +184,7 @@ const VideoCard = ({
         <video
           ref={videoRef}
           src={videoUrl}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
           loop
           muted={isMuted}
           playsInline

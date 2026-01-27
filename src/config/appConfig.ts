@@ -98,4 +98,6 @@ export const APP_CONFIG = {
   maxVideosToLoad: 5,
   intersectionThreshold: 0.5,
   animationDuration: 0.3,
+  initialPostsToFetch: 3,
+  postsPerPage: 3,
 };

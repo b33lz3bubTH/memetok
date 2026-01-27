@@ -1,4 +1,5 @@
 import { env } from '@/lib/env';
+import { cache } from '@/lib/cache';
 
 export type MediaType = 'video' | 'image';
 
@@ -119,7 +120,9 @@ export const media = {
 
 export const postsApi = {
   async list(take = 10, skip = 0) {
-    return apiFetch<{ items: Post[]; take: number; skip: number }>(`/api/posts?take=${take}&skip=${skip}`);
+    const res = await apiFetch<{ items: Post[]; take: number; skip: number }>(`/api/posts?take=${take}&skip=${skip}`);
+    await cache.savePosts(res.items);
+    return res;
   },
   async create(input: { media: MediaItem[]; caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string }, token: string) {
     return apiFetch<Post>('/api/posts', {
@@ -129,10 +132,14 @@ export const postsApi = {
     });
   },
   async get(postId: string) {
-    return apiFetch<Post>(`/api/posts/${postId}`);
+    const post = await apiFetch<Post>(`/api/posts/${postId}`);
+    await cache.savePost(post);
+    return post;
   },
   async getStats(postId: string) {
-    return apiFetch<{ stats: PostStats }>(`/api/posts/${postId}/stats`);
+    const res = await apiFetch<{ stats: PostStats }>(`/api/posts/${postId}/stats`);
+    await cache.saveStats(res.stats);
+    return res;
   },
   async toggleLike(postId: string, token: string) {
     return apiFetch<{ postId: string; liked: boolean; likes: number }>(`/api/posts/${postId}/like`, {
@@ -141,9 +148,11 @@ export const postsApi = {
     });
   },
   async listComments(postId: string, take = 20, skip = 0) {
-    return apiFetch<{ items: Comment[]; take: number; skip: number }>(
+    const res = await apiFetch<{ items: Comment[]; take: number; skip: number }>(
       `/api/posts/${postId}/comments?take=${take}&skip=${skip}`
     );
+    await cache.saveComments(res.items);
+    return res;
   },
   async addComment(postId: string, text: string, token: string) {
     return apiFetch<Comment>(`/api/posts/${postId}/comments`, {

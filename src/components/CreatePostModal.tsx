@@ -226,19 +226,19 @@ export default function CreatePostModal({
     }
 
     return (
-      <div className="px-4 sm:px-10">
-        <Carousel opts={{ loop: true }}>
-          <CarouselContent>
+      <div className="px-4 sm:px-10 flex items-center justify-center">
+        <Carousel opts={{ loop: true }} className="w-full">
+          <CarouselContent className="-ml-0">
             {previews.map((p) => (
-              <CarouselItem key={p.url}>
-                <div className="w-full">
+              <CarouselItem key={p.url} className="pl-0 basis-full">
+                <div className="w-full flex items-center justify-center h-full">
                   <img
                     src={p.url}
                     className="w-full rounded-lg max-h-[420px] object-contain bg-black"
                     alt={p.file.name}
                   />
-                  <div className="mt-2 text-xs text-muted-foreground truncate">{p.file.name}</div>
                 </div>
+                <div className="mt-2 text-xs text-muted-foreground truncate text-center">{p.file.name}</div>
               </CarouselItem>
             ))}
           </CarouselContent>

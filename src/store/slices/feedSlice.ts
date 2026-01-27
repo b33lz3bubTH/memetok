@@ -8,7 +8,9 @@ interface FeedState {
   currentVideoIndex: number;
   likedVideos: string[];
   isLoading: boolean;
+  isLoadingMore: boolean;
   skip: number;
+  hasMore: boolean;
 }
 
 const initialState: FeedState = {
@@ -16,7 +18,9 @@ const initialState: FeedState = {
   currentVideoIndex: 0,
   likedVideos: [],
   isLoading: true,
+  isLoadingMore: false,
   skip: 0,
+  hasMore: true,
 };
 
 const toVideoPost = (p: ApiPost, stats?: { likes: number; comments: number }): VideoPost => {
@@ -56,15 +60,22 @@ const toVideoPost = (p: ApiPost, stats?: { likes: number; comments: number }): V
   };
 };
 
-export const fetchFeed = createAsyncThunk('feed/fetchFeed', async () => {
-  const res = await postsApi.list(20, 0);
-  await cache.savePosts(res.items);
-  
+export const fetchFeed = createAsyncThunk('feed/fetchFeed', async (initialCount: number) => {
+  const res = await postsApi.list(initialCount, 0);
   const videos = res.items.map((post) => {
     return toVideoPost(post);
   });
   
-  return videos;
+  return { videos, skip: res.items.length, hasMore: res.items.length === initialCount };
+});
+
+export const fetchMoreFeed = createAsyncThunk('feed/fetchMoreFeed', async ({ take, skip }: { take: number; skip: number }) => {
+  const res = await postsApi.list(take, skip);
+  const videos = res.items.map((post) => {
+    return toVideoPost(post);
+  });
+  
+  return { videos, skip: skip + res.items.length, hasMore: res.items.length === take };
 });
 
 export const fetchPostStats = createAsyncThunk('feed/fetchPostStats', async (postId: string) => {
@@ -127,11 +138,27 @@ const feedSlice = createSlice({
       state.isLoading = true;
     });
     builder.addCase(fetchFeed.fulfilled, (state, action) => {
-      state.videos = action.payload;
+      state.videos = action.payload.videos;
+      state.skip = action.payload.skip;
+      state.hasMore = action.payload.hasMore;
       state.isLoading = false;
     });
     builder.addCase(fetchFeed.rejected, (state) => {
       state.isLoading = false;
+    });
+    builder.addCase(fetchMoreFeed.pending, (state) => {
+      state.isLoadingMore = true;
+    });
+    builder.addCase(fetchMoreFeed.fulfilled, (state, action) => {
+      const existingIds = new Set(state.videos.map(v => v.id));
+      const newVideos = action.payload.videos.filter(v => !existingIds.has(v.id));
+      state.videos = [...state.videos, ...newVideos];
+      state.skip = action.payload.skip;
+      state.hasMore = action.payload.hasMore;
+      state.isLoadingMore = false;
+    });
+    builder.addCase(fetchMoreFeed.rejected, (state) => {
+      state.isLoadingMore = false;
     });
     builder.addCase(fetchPostStats.fulfilled, (state, action) => {
       const { postId, stats } = action.payload;
