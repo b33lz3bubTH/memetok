@@ -1,0 +1,31 @@
+1. the backend is awful, its not a single route setup.
+2. there are handlers everywhere.
+3. for get route its query, for post put and delete it will be mutation.
+
+there will be one generic route that will take everything. create post is complex, so thats an exception, so keep it as it is.
+in handlers, there will be
+
+CQRS pattern.
+
+from frontend it will be like {
+    type: "query" | "mutation",
+    action: "list_posts",
+    payload: {
+        take: 0,
+        skip: 10
+    }
+}
+
+this will be like this.
+and handlers will be.
+
+{
+    action: posts.list_posts.value, //enums,
+    handler: function to handle this.
+}
+
+this will be like this, best flow.
+
+create proper enums and other things. and there will be a common event bus to exec things async. so that the main thread is never blocked.
+
+i dont want duplicate codes, or useless codes, i need only generic endpoint that will be called by frontend to fetch data, except the create post, routes.
