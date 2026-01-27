@@ -53,10 +53,23 @@
     @apply border-border;
   }
 
+  html {
+    background: hsl(var(--theme-background)) !important;
+    background-color: hsl(var(--theme-background)) !important;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
+    background: hsl(var(--theme-background)) !important;
+    background-color: hsl(var(--theme-background)) !important;
+  }
+
+  #root {
+    background: hsl(var(--theme-background)) !important;
+    background-color: hsl(var(--theme-background)) !important;
+    min-height: 100vh;
   }
 
   /* Hide scrollbar but allow scrolling */

@@ -1,0 +1,3 @@
+class PostNotFoundError(Exception):
+    pass
+

@@ -1,0 +1,54 @@
+i want a backend in my memetok project, it will be serverless.
+my media apis are in streamlander, dont touch this, this is done now use the apis, people will upload there video.
+
+1. use proper SOLID principals for coding
+2. proper industry grade python fastapi setup, use mongo for db.
+3. create services for backend.
+4. clerk will be used for user auth.
+5. post fetch will always be latest first, it will be done take and skip method
+6. media service is stand alone, it will take the media, upload and return the id, save the only id and metadata.
+7. url will be calculated on frontend
+8. mongo and streamlander api will passed as env file
+9. crate a core folder backend.
+like this.
+
+database/
+    - mongo factory (singleton).py
+    - mongo common.py
+
+api/ index.py
+core /
+    - plugins
+    - logger
+    - services
+    - resources/
+        - posts/
+            - service.py (service layer for posts) specific
+            - handlers.py
+            - dtos.py
+            - validators.py
+            - models.py
+            - exceptions.py
+            - contants.py
+        - users/
+        - comments/
+        - likes/
+config/
+    - config.py
+common
+    - app constants.py
+    - other things that are shared
+
+as this project is serverless, there will cqrs setup, common api decide which event bus to call.
+{
+    type: "query",
+    busName: "PostsQueryBus",
+    payload: {
+        query: "SELECT * FROM posts",
+        params: {
+            limit: 10,
+            offset: 0
+        }
+    }
+},
+do it like this.
