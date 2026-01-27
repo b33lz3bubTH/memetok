@@ -5,7 +5,9 @@ import { X, Heart, Send } from 'lucide-react';
 import gsap from 'gsap';
 import { postsApi, Comment } from '@/lib/api';
 import { SignInButton, SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
-import { incCommentsCount } from '@/store/slices/feedSlice';
+import { incCommentsCount, fetchPostStats } from '@/store/slices/feedSlice';
+import { cache } from '@/lib/cache';
+import CreatePostButton from './CreatePostButton';
 
 const CommentDrawer = () => {
   const dispatch = useAppDispatch();
@@ -42,11 +44,27 @@ const CommentDrawer = () => {
   useEffect(() => {
     if (!isCommentDrawerOpen || !postId) return;
     setIsLoading(true);
-    postsApi
-      .listComments(postId, 50, 0)
-      .then((r) => setComments(r.items))
-      .finally(() => setIsLoading(false));
-  }, [isCommentDrawerOpen, postId]);
+    
+    (async () => {
+      dispatch(fetchPostStats(postId));
+      
+      let cachedComments = await cache.getComments(postId);
+      if (cachedComments.length > 0) {
+        setComments(cachedComments);
+        setIsLoading(false);
+      }
+      
+      try {
+        const r = await postsApi.listComments(postId, 50, 0);
+        setComments(r.items);
+        await cache.saveComments(r.items);
+      } catch (err) {
+        console.error('Failed to fetch comments:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [isCommentDrawerOpen, postId, dispatch]);
 
   const handleClose = useCallback(() => {
     // Animate out
@@ -77,6 +95,7 @@ const CommentDrawer = () => {
     if (!token) return;
     const c = await postsApi.addComment(postId, v, token);
     setComments((prev) => [c, ...prev]);
+    await cache.saveComment(c);
     dispatch(incCommentsCount({ videoId: postId, delta: 1 }));
     setText('');
   }, [dispatch, getToken, postId, text]);
@@ -125,7 +144,6 @@ const CommentDrawer = () => {
                 <div className="flex items-center gap-4 mt-2">
                   <button className="flex items-center gap-1 text-muted-foreground text-xs hover:text-primary transition-colors">
                     <Heart className="w-4 h-4" />
-                    0
                   </button>
                   <button className="text-muted-foreground text-xs hover:text-primary transition-colors">
                     Reply
@@ -164,6 +182,11 @@ const CommentDrawer = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating Create Post Button */}
+      {/* <div className="fixed bottom-24 right-4 md:bottom-24 md:right-8 z-50">
+        <CreatePostButton floating />
+      </div> */}
     </>
   );
 };

@@ -9,6 +9,7 @@ import Loader from './Loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
 import CreatePostButton from './CreatePostButton';
+import UserProfile from './UserProfile';
 
 const VideoFeed = () => {
   const dispatch = useAppDispatch();
@@ -119,8 +120,11 @@ const VideoFeed = () => {
         </div>
       </div>
 
+      {/* User Profile */}
+      <UserProfile />
+
       {/* Preload Status Debug (dev only) */}
-      {videos.length > 0 && (
+      {/* {videos.length > 0 && (
         <div className="fixed bottom-4 left-4 z-50">
           <div className="glass px-3 py-2 rounded-lg text-xs text-white/60 font-mono space-y-1">
             <div>Current: {visibleVideoIndex}</div>
@@ -129,7 +133,7 @@ const VideoFeed = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       <CreatePostButton />
     </div>

@@ -7,11 +7,17 @@ export type Post = {
   mediaId: string;
   mediaType: MediaType;
   caption: string;
+  description: string;
   tags: string[];
   status: 'pending' | 'posted';
   createdAt: string;
-  author: { userId: string };
-  stats: { likes: number; comments: number };
+  author: { userId: string; username?: string; profilePhoto?: string };
+};
+
+export type PostStats = {
+  postId: string;
+  likes: number;
+  comments: number;
 };
 
 export type Comment = {
@@ -96,12 +102,18 @@ export const postsApi = {
   async list(take = 10, skip = 0) {
     return apiFetch<{ items: Post[]; take: number; skip: number }>(`/api/posts?take=${take}&skip=${skip}`);
   },
-  async create(input: { mediaId: string; mediaType: MediaType; caption: string; tags: string[] }, token: string) {
+  async create(input: { mediaId: string; mediaType: MediaType; caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string }, token: string) {
     return apiFetch<Post>('/api/posts', {
       method: 'POST',
       body: JSON.stringify(input),
       headers: { Authorization: `Bearer ${token}` },
     });
+  },
+  async get(postId: string) {
+    return apiFetch<Post>(`/api/posts/${postId}`);
+  },
+  async getStats(postId: string) {
+    return apiFetch<{ stats: PostStats }>(`/api/posts/${postId}/stats`);
   },
   async toggleLike(postId: string, token: string) {
     return apiFetch<{ postId: string; liked: boolean; likes: number }>(`/api/posts/${postId}/like`, {
@@ -120,6 +132,11 @@ export const postsApi = {
       body: JSON.stringify({ text }),
       headers: { Authorization: `Bearer ${token}` },
     });
+  },
+  async listByUser(userId: string, take = 50, skip = 0) {
+    return apiFetch<{ items: Post[]; take: number; skip: number; total?: number }>(
+      `/api/posts/user/${userId}?take=${take}&skip=${skip}`
+    );
   },
 };
 

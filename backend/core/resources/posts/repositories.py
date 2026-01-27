@@ -22,11 +22,27 @@ class PostsRepository:
         count = await mongo.db[POSTS_COLLECTION].count_documents({})
         return count
 
+    async def count_posts_by_user(self, user_id: str) -> int:
+        mongo = get_mongo()
+        count = await mongo.db[POSTS_COLLECTION].count_documents({"author.userId": user_id})
+        return count
+
     async def find_latest_posted(self, take: int, skip: int) -> List[Dict[str, Any]]:
         mongo = get_mongo()
         cursor = (
             mongo.db[POSTS_COLLECTION]
-            .find({"status": POST_STATUS_POSTED})
+            .find({"status": POST_STATUS_POSTED}, {"stats": 0})
+            .sort("createdAt", -1)
+            .skip(skip)
+            .limit(take)
+        )
+        return [d async for d in cursor]
+
+    async def find_by_user_id(self, user_id: str, take: int, skip: int) -> List[Dict[str, Any]]:
+        mongo = get_mongo()
+        cursor = (
+            mongo.db[POSTS_COLLECTION]
+            .find({"author.userId": user_id, "status": POST_STATUS_POSTED}, {"stats": 0})
             .sort("createdAt", -1)
             .skip(skip)
             .limit(take)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import { Loader2, Upload, X } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchFeed } from '@/store/slices/feedSlice';
@@ -24,7 +24,8 @@ const STEP_ORDER: Array<{ key: StepKey; title: string; subtitle: string }> = [
 ];
 
 function isVideoFile(f: File) {
-  return f.type.startsWith('video/') || f.name.toLowerCase().endsWith('.mp4');
+  const name = f.name.toLowerCase();
+  return f.type === 'video/mp4' || name.endsWith('.mp4');
 }
 
 function isImageFile(f: File) {
@@ -48,6 +49,7 @@ export default function CreatePostModal({
 }) {
   const dispatch = useAppDispatch();
   const { getToken } = useAuth();
+  const { user } = useUser();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -57,6 +59,7 @@ export default function CreatePostModal({
 
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [tagsRaw, setTagsRaw] = useState('');
 
   const [isUploading, setIsUploading] = useState(false);
@@ -90,6 +93,7 @@ export default function CreatePostModal({
     setStepIdx(0);
     setFiles([]);
     setTitle('');
+    setDescription('');
     setTagsRaw('');
     setIsUploading(false);
     setOverallPct(0);
@@ -104,27 +108,36 @@ export default function CreatePostModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const isUploadStepValid = files.length === 1 && !!mediaType;
+  const isDetailsStepValid = title.trim().length > 0;
+
+  const getMaxAllowedStepIdx = () => {
+    if (!isUploadStepValid) return 0;
+    if (!isDetailsStepValid) return 2;
+    return STEP_ORDER.length - 1;
+  };
+
   const canGoNext =
-    (step === 'upload' && files.length > 0) ||
-    step === 'preview' ||
-    step === 'details' ||
-    step === 'publish';
+    (step === 'upload' && isUploadStepValid) ||
+    (step === 'preview' && isUploadStepValid) ||
+    (step === 'details' && isUploadStepValid && isDetailsStepValid);
 
   const goNext = () => {
     if (!canGoNext) return;
-    setStepIdx((i) => Math.min(i + 1, STEP_ORDER.length - 1));
+    setStepIdx((i) => Math.min(i + 1, getMaxAllowedStepIdx()));
   };
 
   const goBack = () => setStepIdx((i) => Math.max(i - 1, 0));
 
   const validateSelection = (picked: File[]) => {
-    if (picked.length === 0) return { ok: false, reason: 'No files selected.' };
-    const anyVideo = picked.some(isVideoFile);
-    const anyImage = picked.some(isImageFile);
-    if (anyVideo && anyImage) return { ok: false, reason: 'Pick either 1 video OR images (not both).' };
-    if (anyVideo && picked.length > 1) return { ok: false, reason: 'Only 1 video is allowed.' };
-    if (anyImage && picked.some((f) => !isImageFile(f))) return { ok: false, reason: 'Only images are allowed.' };
-    if (anyImage && picked.length > 10) return { ok: false, reason: 'Max 10 images.' };
+    if (picked.length === 0) return { ok: false, reason: 'No file selected.' };
+    if (picked.length > 1) return { ok: false, reason: 'Only 1 file is allowed.' };
+    const file = picked[0]!;
+    const isVideo = isVideoFile(file);
+    const isImage = isImageFile(file);
+    if (!isVideo && !isImage) {
+      return { ok: false, reason: 'Only images and MP4 video are allowed.' };
+    }
     return { ok: true as const };
   };
 
@@ -134,7 +147,7 @@ export default function CreatePostModal({
       toast({ title: 'Invalid selection', description: v.reason });
       return;
     }
-    setFiles(picked);
+    setFiles(picked.slice(0, 1));
     setError(null);
     setDoneCount(0);
   };
@@ -172,7 +185,10 @@ export default function CreatePostModal({
             mediaId: up.id,
             mediaType: isVideoFile(f) ? 'video' : 'image',
             caption: title.trim(),
+            description: description.trim(),
             tags,
+            username: user?.fullName || user?.username || undefined,
+            profilePhoto: user?.imageUrl || undefined,
           },
           token
         );
@@ -199,7 +215,7 @@ export default function CreatePostModal({
     abortRef.current?.abort();
   };
 
-  const renderPreview = () => {
+    const renderPreview = () => {
     if (previews.length === 0) return null;
     if (previews.length === 1) {
       const p = previews[0]!;
@@ -236,8 +252,8 @@ export default function CreatePostModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!isUploading ? onOpenChange(o) : undefined)}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr]">
+      <DialogContent className="p-0 overflow-hidden max-w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col">
+        <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] flex-1 min-h-0">
           {/* Steps */}
           <div className="border-b sm:border-b-0 sm:border-r bg-muted/30 p-4">
             <div className="text-xs font-medium text-muted-foreground mb-3">Create post</div>
@@ -277,7 +293,7 @@ export default function CreatePostModal({
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-6 overflow-y-auto">
             <DialogHeader className="mb-4">
               <DialogTitle>{STEP_ORDER[stepIdx]?.title}</DialogTitle>
             </DialogHeader>
@@ -287,9 +303,9 @@ export default function CreatePostModal({
                 <div className="rounded-xl border border-dashed p-6 bg-background">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold">Upload media</div>
+                    <div className="text-sm font-semibold">Upload media</div>
                       <div className="text-xs text-muted-foreground">
-                        1 video (mp4) or up to 10 images.
+                        1 file only. MP4 video or any image.
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -321,7 +337,6 @@ export default function CreatePostModal({
                     ref={fileInputRef}
                     type="file"
                     accept="video/mp4,image/*"
-                    multiple
                     className="hidden"
                     onChange={(e) => {
                       const picked = Array.from(e.target.files ?? []);
@@ -332,13 +347,12 @@ export default function CreatePostModal({
 
                   {files.length > 0 && (
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge variant="secondary">{hasVideo ? 'Video' : `${files.length} image${files.length > 1 ? 's' : ''}`}</Badge>
-                      {files.slice(0, 4).map((f) => (
+                      <Badge variant="secondary">{hasVideo ? 'Video' : 'Image'}</Badge>
+                      {files.map((f) => (
                         <Badge key={f.name} variant="outline" className="max-w-[220px] truncate">
                           {f.name}
                         </Badge>
                       ))}
-                      {files.length > 4 && <Badge variant="outline">+{files.length - 4} more</Badge>}
                     </div>
                   )}
                 </div>
@@ -360,6 +374,18 @@ export default function CreatePostModal({
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Give it a title..."
                     disabled={isUploading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="post-description">Description (optional)</Label>
+                  <textarea
+                    id="post-description"
+                    value={description}
+                    maxLength={1000}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Add a description..."
+                    disabled={isUploading}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
                 <div className="space-y-2">

@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { VideoPost } from '@/config/appConfig';
 import { media, postsApi, Post as ApiPost } from '@/lib/api';
+import { cache } from '@/lib/cache';
 
 interface FeedState {
   videos: VideoPost[];
@@ -18,15 +19,17 @@ const initialState: FeedState = {
   skip: 0,
 };
 
-const toVideoPost = (p: ApiPost): VideoPost => {
-  const username = p.author?.userId ? `user_${p.author.userId.slice(-6)}` : 'user';
+const toVideoPost = (p: ApiPost, stats?: { likes: number; comments: number }): VideoPost => {
+  const defaultStats = stats || { likes: 0, comments: 0 };
+  const username = p.author?.username || (p.author?.userId ? `user_${p.author.userId.slice(-6)}` : 'user');
+  const avatar = p.author?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
   return {
     id: p.id,
     mediaId: p.mediaId,
     mediaType: p.mediaType,
     url: `/post/${p.id}`,
     title: p.caption?.slice(0, 24) || 'Post',
-    description: p.caption || '',
+    description: p.description || p.caption || '',
     extras: {
       tags: p.tags || [],
       title: p.caption?.slice(0, 40) || 'Post',
@@ -38,20 +41,36 @@ const toVideoPost = (p: ApiPost): VideoPost => {
       },
     ],
     stats: {
-      likes: p.stats?.likes ?? 0,
-      comments: p.stats?.comments ?? 0,
+      likes: defaultStats.likes,
+      comments: defaultStats.comments,
       shares: 0,
     },
     author: {
       username,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`,
+      avatar,
     },
   };
 };
 
 export const fetchFeed = createAsyncThunk('feed/fetchFeed', async () => {
   const res = await postsApi.list(20, 0);
-  return res.items.map(toVideoPost);
+  await cache.savePosts(res.items);
+  
+  const videos = res.items.map((post) => {
+    return toVideoPost(post);
+  });
+  
+  return videos;
+});
+
+export const fetchPostStats = createAsyncThunk('feed/fetchPostStats', async (postId: string) => {
+  let stats = await cache.getStats(postId);
+  if (!stats) {
+    const statsRes = await postsApi.getStats(postId);
+    stats = statsRes.stats;
+    await cache.saveStats(stats);
+  }
+  return { postId, stats };
 });
 
 const feedSlice = createSlice({
@@ -109,6 +128,14 @@ const feedSlice = createSlice({
     });
     builder.addCase(fetchFeed.rejected, (state) => {
       state.isLoading = false;
+    });
+    builder.addCase(fetchPostStats.fulfilled, (state, action) => {
+      const { postId, stats } = action.payload;
+      const video = state.videos.find((v) => v.id === postId);
+      if (video) {
+        video.stats.likes = stats.likes;
+        video.stats.comments = stats.comments;
+      }
     });
   },
 });

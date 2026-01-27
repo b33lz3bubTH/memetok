@@ -7,7 +7,7 @@ from uuid import uuid4
 from common.app_constants import POST_STATUS_PENDING
 from database.mongo_common import now_utc
 from core.resources.jobs.service import JobsService
-from core.resources.posts.dtos import CommentDTO, MediaType, PostDTO
+from core.resources.posts.dtos import CommentDTO, MediaType, PostDTO, PostListDTO, PostStatsDTO
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 from core.resources.posts.validators import normalize_tags
@@ -24,18 +24,24 @@ class PostsService:
     comments_repo: CommentsRepository
     jobs_service: JobsService
 
-    async def create_post(self, user_id: str, media_id: str, media_type: MediaType, caption: str, tags: list[str]) -> PostDTO:
+    async def create_post(self, user_id: str, media_id: str, media_type: MediaType, caption: str, description: str, tags: list[str], username: str | None = None, profile_photo: str | None = None) -> PostDTO:
         now = now_utc()
         post_id = str(uuid4())
+        author = {"userId": user_id}
+        if username:
+            author["username"] = username
+        if profile_photo:
+            author["profilePhoto"] = profile_photo
         doc = {
             "id": post_id,
             "mediaId": media_id,
             "mediaType": media_type,
             "caption": caption,
+            "description": description,
             "tags": normalize_tags(tags),
             "status": POST_STATUS_PENDING,
             "createdAt": now,
-            "author": {"userId": user_id},
+            "author": author,
             "stats": {"likes": 0, "comments": 0},
         }
         await self.posts_repo.insert(doc)
@@ -43,14 +49,33 @@ class PostsService:
         await self.jobs_service.enqueue_verify_media(post_id=post_id, media_id=media_id, media_type=media_type)
         return PostDTO.model_validate(doc)
 
-    async def list_posts(self, take: int, skip: int) -> List[PostDTO]:
+    async def list_posts(self, take: int, skip: int) -> List[PostListDTO]:
         docs = await self.posts_repo.find_latest_posted(take=take, skip=skip)
         logger.info("list_posts ok take=%s skip=%s count=%s", take, skip, len(docs))
+        return [PostListDTO.model_validate(d) for d in docs]
 
+    async def list_posts_by_user(self, user_id: str, take: int, skip: int) -> List[PostListDTO]:
+        docs = await self.posts_repo.find_by_user_id(user_id=user_id, take=take, skip=skip)
+        logger.info("list_posts_by_user user_id=%s take=%s skip=%s count=%s", user_id, take, skip, len(docs))
+        return [PostListDTO.model_validate(d) for d in docs]
 
-        total_pots = await self.posts_repo.count_posts()
-        logger.info("list_posts ok take=%s skip=%s count=%s total_pots=%s", take, skip, len(docs), total_pots)
-        return [PostDTO.model_validate(d) for d in docs]
+    async def count_posts_by_user(self, user_id: str) -> int:
+        return await self.posts_repo.count_posts_by_user(user_id=user_id)
+
+    async def get_post(self, post_id: str) -> PostDTO:
+        doc = await self.posts_repo.find_by_id(post_id)
+        if not doc:
+            raise PostNotFoundError()
+        logger.info("get_post post_id=%s", post_id)
+        return PostDTO.model_validate(doc)
+
+    async def get_post_stats(self, post_id: str) -> PostStatsDTO:
+        post = await self.posts_repo.find_by_id(post_id)
+        if not post:
+            raise PostNotFoundError()
+        likes = int(post.get("stats", {}).get("likes", 0))
+        comments = int(post.get("stats", {}).get("comments", 0))
+        return PostStatsDTO(postId=post_id, likes=likes, comments=comments)
 
     async def toggle_like(self, post_id: str, user_id: str) -> tuple[bool, int]:
         post = await self.posts_repo.find_by_id(post_id)

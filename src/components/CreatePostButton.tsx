@@ -1,10 +1,32 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { SignInButton, SignedIn, SignedOut } from '@clerk/clerk-react';
+import { useAppSelector } from '@/store/hooks';
 import CreatePostModal from '@/components/CreatePostModal';
 
-export default function CreatePostButton() {
+interface CreatePostButtonProps {
+  floating?: boolean;
+}
+
+export default function CreatePostButton({ floating = false }: CreatePostButtonProps) {
   const [open, setOpen] = useState(false);
+  const { isCommentDrawerOpen } = useAppSelector((state) => state.ui);
+  
+  if (floating) {
+    return (
+      <SignedIn>
+        <button
+          onClick={() => setOpen(true)}
+          className="glass w-12 h-12 rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-6 h-6 text-white" />
+        </button>
+        <CreatePostModal open={open} onOpenChange={setOpen} />
+      </SignedIn>
+    );
+  }
+
+  if (isCommentDrawerOpen) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">

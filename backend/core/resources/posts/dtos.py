@@ -13,11 +13,16 @@ class CreatePostRequest(BaseModel):
     mediaId: str = Field(min_length=1)
     mediaType: MediaType
     caption: str = Field(default="", max_length=300)
+    description: str = Field(default="", max_length=1000)
     tags: List[str] = Field(default_factory=list, max_length=20)
+    username: Optional[str] = None
+    profilePhoto: Optional[str] = None
 
 
 class AuthorDTO(BaseModel):
     userId: str
+    username: Optional[str] = None
+    profilePhoto: Optional[str] = None
 
 
 class StatsDTO(BaseModel):
@@ -30,17 +35,41 @@ class PostDTO(BaseModel):
     mediaId: str
     mediaType: MediaType
     caption: str
+    description: str
     tags: List[str]
     status: Literal["pending", "posted"]
     createdAt: datetime
     author: AuthorDTO
-    stats: StatsDTO
+    stats: Optional[StatsDTO] = None
+
+
+class PostStatsDTO(BaseModel):
+    postId: str
+    likes: int
+    comments: int
+
+
+class PostListDTO(BaseModel):
+    id: str
+    mediaId: str
+    mediaType: MediaType
+    caption: str
+    description: str = ""
+    tags: List[str]
+    status: Literal["pending", "posted"]
+    createdAt: datetime
+    author: AuthorDTO
 
 
 class ListPostsResponse(BaseModel):
-    items: List[PostDTO]
+    items: List[PostListDTO]
     take: int
     skip: int
+    total: Optional[int] = None
+
+
+class PostStatsResponse(BaseModel):
+    stats: PostStatsDTO
 
 
 class CommentCreateRequest(BaseModel):

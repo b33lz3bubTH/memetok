@@ -13,6 +13,8 @@ from core.resources.posts.dtos import (
     ListPostsResponse,
     ToggleLikeResponse,
     CreatePostRequest,
+    PostStatsResponse,
+    PostDTO,
 )
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
@@ -45,7 +47,7 @@ async def list_posts(
     try:
         logger.info("list_posts take=%s skip=%s", take, skip)
         items = await _svc.list_posts(take=take, skip=skip)
-        return {"items": items, "take": take, "skip": skip}
+        return {"items": items, "take": take, "skip": skip, "total": None}
     except PyMongoError as e:
         logger.exception("list_posts db error")
         raise HTTPException(status_code=503, detail="db unavailable") from e
@@ -59,9 +61,39 @@ async def create_post(req: CreatePostRequest, user=Depends(get_current_user)):
         media_id=req.mediaId,
         media_type=req.mediaType,
         caption=req.caption,
+        description=req.description,
         tags=req.tags,
+        username=req.username,
+        profile_photo=req.profilePhoto,
     )
     return post
+
+
+@router.get("/posts/user/{user_id}", response_model=ListPostsResponse)
+async def list_user_posts(
+    user_id: str,
+    take: int = Query(default=50, ge=1, le=100),
+    skip: int = Query(default=0, ge=0),
+):
+    try:
+        logger.info("list_user_posts user_id=%s take=%s skip=%s", user_id, take, skip)
+        items = await _svc.list_posts_by_user(user_id=user_id, take=take, skip=skip)
+        total = await _svc.count_posts_by_user(user_id=user_id)
+        return {"items": items, "take": take, "skip": skip, "total": total}
+    except PyMongoError as e:
+        logger.exception("list_user_posts db error")
+        raise HTTPException(status_code=503, detail="db unavailable") from e
+
+
+@router.get("/posts/{post_id}/stats", response_model=PostStatsResponse)
+async def get_post_stats(post_id: str):
+    try:
+        logger.info("get_post_stats post_id=%s", post_id)
+        stats = await _svc.get_post_stats(post_id=post_id)
+        return {"stats": stats}
+    except PostNotFoundError as e:
+        logger.info("get_post_stats not found post_id=%s", post_id)
+        raise HTTPException(status_code=404, detail="post not found") from e
 
 
 @router.post("/posts/{post_id}/like", response_model=ToggleLikeResponse)
@@ -97,5 +129,16 @@ async def add_comment(post_id: str, req: CommentCreateRequest, user=Depends(get_
         return await _svc.add_comment(post_id=post_id, user_id=user.user_id, text=req.text)
     except PostNotFoundError as e:
         logger.info("add_comment not found post_id=%s", post_id)
+        raise HTTPException(status_code=404, detail="post not found") from e
+
+
+@router.get("/posts/{post_id}", response_model=PostDTO)
+async def get_post(post_id: str):
+    try:
+        logger.info("get_post post_id=%s", post_id)
+        post = await _svc.get_post(post_id=post_id)
+        return post
+    except PostNotFoundError as e:
+        logger.info("get_post not found post_id=%s", post_id)
         raise HTTPException(status_code=404, detail="post not found") from e
 

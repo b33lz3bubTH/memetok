@@ -1,6 +1,6 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setLikedState, setLikesCount, toggleLike } from '@/store/slices/feedSlice';
+import { setLikedState, setLikesCount, toggleLike, fetchPostStats } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
 import { Heart, MessageCircle, Share2, Music } from 'lucide-react';
@@ -31,6 +31,15 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const heartRef = useRef<HTMLDivElement>(null);
   const burstContainerRef = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
+
+  const [statsLoaded, setStatsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!statsLoaded) {
+      dispatch(fetchPostStats(video.id));
+      setStatsLoaded(true);
+    }
+  }, [video.id, statsLoaded, dispatch]);
 
   const handleLike = useCallback(async () => {
     dispatch(toggleLike(video.id));
@@ -81,6 +90,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       const res = await postsApi.toggleLike(video.id, token);
       dispatch(setLikesCount({ videoId: video.id, likes: res.likes }));
       dispatch(setLikedState({ videoId: video.id, liked: res.liked }));
+      setStatsLoaded(true);
     } catch {
       // ignore (optimistic state stays)
     }
@@ -121,7 +131,6 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
               <Heart className="w-7 h-7 transition-colors text-white" fill="none" />
               <div ref={burstContainerRef} className="like-burst-container" />
             </div>
-            <span className="text-white text-xs font-medium">{formatNumber(video.stats.likes)}</span>
           </button>
         </SignInButton>
       </SignedOut>
@@ -134,7 +143,6 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
             />
             <div ref={burstContainerRef} className="like-burst-container" />
           </div>
-          <span className="text-white text-xs font-medium">{formatNumber(video.stats.likes)}</span>
         </button>
       </SignedIn>
 
@@ -143,9 +151,6 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <div className="action-btn-icon">
           <MessageCircle className="w-7 h-7 text-white" />
         </div>
-        <span className="text-white text-xs font-medium">
-          {formatNumber(video.stats.comments)}
-        </span>
       </button>
 
       {/* Share Button */}
@@ -153,9 +158,6 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <div className="action-btn-icon">
           <Share2 className="w-7 h-7 text-white" />
         </div>
-        <span className="text-white text-xs font-medium">
-          {formatNumber(video.stats.shares)}
-        </span>
       </button>
 
       {/* Sound Disc */}
