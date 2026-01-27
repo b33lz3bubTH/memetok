@@ -46,13 +46,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export const media = {
   async uploadWithProgress(
     file: File,
-    opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
-  ): Promise<{ id: string; stored_name?: string; status?: string }> {
-    const streamlanderBase = env.streamlanderBaseUrl.replace(/\/$/, '');
+    opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
+    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string },
+    token?: string
+  ): Promise<Post> {
+    const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
     return await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${streamlanderBase}/upload`);
+      xhr.open('POST', `${apiBase}/api/posts/upload`);
       xhr.responseType = 'json';
+
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
 
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
@@ -62,7 +68,7 @@ export const media = {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve((xhr.response ?? {}) as { id: string; stored_name?: string; status?: string });
+          resolve((xhr.response ?? {}) as Post);
           return;
         }
         const msg =
@@ -84,6 +90,13 @@ export const media = {
 
       const fd = new FormData();
       fd.append('file', file);
+      if (metadata) {
+        fd.append('caption', metadata.caption);
+        fd.append('description', metadata.description);
+        fd.append('tags', metadata.tags.join(','));
+        if (metadata.username) fd.append('username', metadata.username);
+        if (metadata.profilePhoto) fd.append('profilePhoto', metadata.profilePhoto);
+      }
       xhr.send(fd);
     });
   },

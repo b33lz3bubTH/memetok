@@ -13,11 +13,23 @@ class StreamlanderClient:
 
     async def upload(self, filename: str, content_type: str, data: bytes) -> Dict[str, Any]:
         url = f"{self._base_url}/upload"
+        # httpx accepts bytes directly in tuple format: (filename, bytes, content_type)
+        # This is the recommended way per httpx documentation
         files = {"file": (filename, data, content_type)}
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, files=files)
-            resp.raise_for_status()
-            return resp.json()
+        async with httpx.AsyncClient(timeout=300.0) as client:  # Increased timeout for large files
+            try:
+                resp = await client.post(url, files=files)
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.HTTPStatusError as e:
+                # Try to get error details from response
+                error_detail = "Unknown error"
+                try:
+                    if e.response.content:
+                        error_detail = e.response.text[:500]  # Limit error message length
+                except:
+                    pass
+                raise Exception(f"Streamlander upload failed: {e.response.status_code} - {error_detail}") from e
 
     async def video_ready(self, media_id: str) -> bool:
         """

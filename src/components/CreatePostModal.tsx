@@ -172,18 +172,16 @@ export default function CreatePostModal({
       const total = files.length;
       for (let i = 0; i < total; i++) {
         const f = files[i]!;
-        const up = await media.uploadWithProgress(f, {
-          signal: abort.signal,
-          onProgress: (pct) => {
-            const overall = ((i + pct / 100) / total) * 100;
-            setOverallPct(overall);
-          },
-        });
-
-        await postsApi.create(
+        await media.uploadWithProgress(
+          f,
           {
-            mediaId: up.id,
-            mediaType: isVideoFile(f) ? 'video' : 'image',
+            signal: abort.signal,
+            onProgress: (pct) => {
+              const overall = ((i + pct / 100) / total) * 100;
+              setOverallPct(overall);
+            },
+          },
+          {
             caption: title.trim(),
             description: description.trim(),
             tags,

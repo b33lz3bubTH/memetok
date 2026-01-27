@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from pymongo.errors import PyMongoError
 
 from core.logger.logger import get_logger
@@ -19,6 +19,7 @@ from core.resources.posts.dtos import (
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 from core.resources.posts.service import PostsService
+from core.services.streamlander.client import StreamlanderClient
 
 
 router = APIRouter(tags=["posts"])
@@ -51,6 +52,88 @@ async def list_posts(
     except PyMongoError as e:
         logger.exception("list_posts db error")
         raise HTTPException(status_code=503, detail="db unavailable") from e
+
+
+@router.post("/posts/upload")
+async def upload_and_create_post(
+    file: UploadFile = File(...),
+    caption: str = Form(default="", max_length=300),
+    description: str = Form(default="", max_length=1000),
+    tags: str = Form(default=""),
+    username: str | None = Form(default=None),
+    profilePhoto: str | None = Form(default=None),
+    user=Depends(get_current_user),
+):
+    """
+    Upload a file to streamlander, create a post in the database, and queue verification.
+    This endpoint prevents direct access to streamlander and allows for rate limiting.
+    """
+    logger.info("upload_and_create_post user_id=%s filename=%s", user.user_id, file.filename)
+    
+    # Validate file type
+    content_type = file.content_type or ""
+    is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
+    is_image = content_type.startswith("image/")
+    
+    if not is_video and not is_image:
+        raise HTTPException(status_code=400, detail="Only MP4 videos and images are allowed")
+    
+    media_type = "video" if is_video else "image"
+    
+    # Read file content
+    try:
+        file_content = await file.read()
+    except Exception as e:
+        logger.exception("failed to read uploaded file")
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+    
+    # Upload to streamlander
+    # Ensure filename has proper extension for streamlander validation
+    upload_filename = file.filename or "upload"
+    if not upload_filename:
+        upload_filename = f"upload.{'mp4' if is_video else 'jpg'}"
+    elif not any(upload_filename.lower().endswith(ext) for ext in ['.mp4', '.jpg', '.jpeg', '.png']):
+        # Add extension if missing
+        ext = '.mp4' if is_video else '.jpg'
+        upload_filename = f"{upload_filename}{ext}"
+    
+    logger.info("uploading to streamlander filename=%s content_type=%s size=%d", upload_filename, content_type, len(file_content))
+    
+    streamlander_client = StreamlanderClient()
+    try:
+        upload_result = await streamlander_client.upload(
+            filename=upload_filename,
+            content_type=content_type,
+            data=file_content,
+        )
+        media_id = upload_result.get("id")
+        if not media_id:
+            logger.error("streamlander did not return a media ID in response: %s", upload_result)
+            raise HTTPException(status_code=500, detail="Streamlander did not return a media ID")
+        logger.info("streamlander upload success media_id=%s", media_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("failed to upload to streamlander filename=%s", upload_filename)
+        raise HTTPException(status_code=500, detail=f"Failed to upload to streamlander: {str(e)}")
+    
+    # Parse tags
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()][:20]
+    
+    # Create post in database and queue verification
+    post = await _svc.create_post(
+        user_id=user.user_id,
+        media_id=media_id,
+        media_type=media_type,
+        caption=caption,
+        description=description,
+        tags=tag_list,
+        username=username,
+        profile_photo=profilePhoto,
+    )
+    
+    logger.info("upload_and_create_post success post_id=%s media_id=%s", post.id, media_id)
+    return post
 
 
 @router.post("/posts")
