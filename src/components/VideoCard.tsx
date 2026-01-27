@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleMute, setActiveVideoId } from '@/store/slices/uiSlice';
+import { toggleLike, setLikesCount, setLikedState } from '@/store/slices/feedSlice';
 import { VideoPost } from '@/config/appConfig';
-import { Volume2, VolumeX, Play, Loader2 } from 'lucide-react';
+import { Volume2, VolumeX, Play, Loader2, Heart } from 'lucide-react';
 import VideoSidebar from './VideoSidebar';
 import VideoOverlay from './VideoOverlay';
 import { PreloadStrategy } from '@/hooks/useVideoPreload';
-import { media as mediaApi } from '@/lib/api';
+import { media as mediaApi, postsApi } from '@/lib/api';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useAuth } from '@clerk/clerk-react';
+import gsap from 'gsap';
 
 interface VideoCardProps {
   video: VideoPost;
@@ -26,9 +29,16 @@ const VideoCard = ({
 }: VideoCardProps) => {
   const dispatch = useAppDispatch();
   const { isMuted } = useAppSelector((state) => state.ui);
+  const likedVideos = useAppSelector((state) => state.feed.likedVideos);
+  const isLiked = likedVideos.includes(video.id);
+  const { getToken } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const likeAnimationRef = useRef<HTMLDivElement>(null);
+  const lastTapRef = useRef<number>(0);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showLocalPlayIcon, setShowLocalPlayIcon] = useState(false);
+  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [bufferProgress, setBufferProgress] = useState(0);
   const [canPlay, setCanPlay] = useState(false);
@@ -115,6 +125,27 @@ const VideoCard = ({
     }
   }, [isMuted]);
 
+  const handleVideoHoldStart = useCallback(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement || isImage) return;
+
+    holdTimerRef.current = setTimeout(() => {
+      if (videoElement && !videoElement.paused) {
+        videoElement.pause();
+        setIsPlaying(false);
+        setShowLocalPlayIcon(true);
+        setTimeout(() => setShowLocalPlayIcon(false), 1000);
+      }
+    }, 300);
+  }, [isImage]);
+
+  const handleVideoHoldEnd = useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
+
   const handleVideoClick = useCallback(() => {
     const videoElement = videoRef.current;
     if (!videoElement || isImage) return;
@@ -123,11 +154,6 @@ const VideoCard = ({
       videoElement.play().catch(console.error);
       setIsPlaying(true);
       setShowLocalPlayIcon(false);
-    } else {
-      videoElement.pause();
-      setIsPlaying(false);
-      setShowLocalPlayIcon(true);
-      setTimeout(() => setShowLocalPlayIcon(false), 1000);
     }
   }, [isImage]);
 
@@ -135,6 +161,97 @@ const VideoCard = ({
     e.stopPropagation();
     dispatch(toggleMute());
   }, [dispatch]);
+
+  const handleDoubleTap = useCallback(async () => {
+    // Show like animation
+    setShowLikeAnimation(true);
+    
+    // Toggle like
+    dispatch(toggleLike(video.id));
+
+    // Call backend
+    const token = await getToken();
+    if (token) {
+      try {
+        const res = await postsApi.toggleLike(video.id, token);
+        dispatch(setLikesCount({ videoId: video.id, likes: res.likes }));
+        dispatch(setLikedState({ videoId: video.id, liked: res.liked }));
+      } catch {
+        // ignore (optimistic state stays)
+      }
+    }
+
+    // Wait for DOM to update
+    setTimeout(() => {
+      if (!likeAnimationRef.current) return;
+      
+      const heart = likeAnimationRef.current.querySelector('svg') as SVGElement;
+      if (!heart) return;
+      
+      // Reset initial state
+      gsap.set(likeAnimationRef.current, { scale: 0, opacity: 1 });
+      gsap.set(heart, { fill: '#ffffff', stroke: '#ffffff' });
+      
+      // Step 1: Scale up and change color
+      gsap.to(likeAnimationRef.current, {
+        scale: 1.3,
+        duration: 0.3,
+        ease: 'back.out(1.7)',
+        onComplete: () => {
+          // Step 2: Change color to red
+          gsap.to(heart, {
+            fill: '#ef4444',
+            stroke: '#ef4444',
+            duration: 0.2,
+            onComplete: () => {
+              // Step 3: Wait a bit, then shrink
+              setTimeout(() => {
+                if (!likeAnimationRef.current) return;
+                gsap.to(likeAnimationRef.current, {
+                  scale: 0.6,
+                  duration: 0.3,
+                  ease: 'power2.in',
+                  onComplete: () => {
+                    // Step 4: Fade away
+                    if (!likeAnimationRef.current) return;
+                    gsap.to(likeAnimationRef.current, {
+                      opacity: 0,
+                      duration: 0.5,
+                      ease: 'power2.out',
+                      onComplete: () => {
+                        // Step 5: Hide completely
+                        setShowLikeAnimation(false);
+                      },
+                    });
+                  },
+                });
+              }, 200);
+            },
+          });
+        },
+      });
+    }, 10);
+  }, [dispatch, video.id, getToken]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDoubleTap();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [handleDoubleTap]);
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleDoubleTap();
+  }, [handleDoubleTap]);
 
   return (
     <div className="video-card" data-index={dataIndex}>
@@ -164,6 +281,8 @@ const VideoCard = ({
                       src={mediaApi.imageUrl(item.id)}
                       className="w-full h-screen object-contain"
                       alt={video.title}
+                      onTouchStart={handleTouchStart}
+                      onDoubleClick={handleDoubleClick}
                     />
                   </CarouselItem>
                 ))}
@@ -178,6 +297,8 @@ const VideoCard = ({
             className="absolute inset-0 w-full h-full object-contain"
             alt={video.title}
             onClick={handleVideoClick}
+            onTouchStart={handleTouchStart}
+            onDoubleClick={handleDoubleClick}
           />
         )
       ) : (
@@ -190,6 +311,15 @@ const VideoCard = ({
           playsInline
           preload={preloadStrategy}
           onClick={handleVideoClick}
+          onMouseDown={handleVideoHoldStart}
+          onMouseUp={handleVideoHoldEnd}
+          onMouseLeave={handleVideoHoldEnd}
+          onTouchStart={(e) => {
+            handleTouchStart(e);
+            handleVideoHoldStart();
+          }}
+          onTouchEnd={handleVideoHoldEnd}
+          onDoubleClick={handleDoubleClick}
         />
       )}
 
@@ -215,6 +345,16 @@ const VideoCard = ({
           <div className="play-icon">
             <Play className="w-10 h-10 text-white fill-white ml-1" />
           </div>
+        </div>
+      )}
+
+      {/* Double Tap Like Animation */}
+      {showLikeAnimation && (
+        <div
+          ref={likeAnimationRef}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none"
+        >
+          <Heart className="w-24 h-24 text-white fill-white stroke-white drop-shadow-2xl" />
         </div>
       )}
 
