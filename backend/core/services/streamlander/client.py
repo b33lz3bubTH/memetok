@@ -16,7 +16,7 @@ class StreamlanderClient:
         # httpx accepts bytes directly in tuple format: (filename, bytes, content_type)
         # This is the recommended way per httpx documentation
         files = {"file": (filename, data, content_type)}
-        async with httpx.AsyncClient(timeout=300.0) as client:  # Increased timeout for large files
+        async with httpx.AsyncClient(timeout=1600.0) as client:  # Increased timeout for large files
             try:
                 resp = await client.post(url, files=files)
                 resp.raise_for_status()
