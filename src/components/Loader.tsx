@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '@/config/appConfig';
 import { useEffect, useState } from 'react';
 
 interface LoaderProps {
@@ -34,7 +35,7 @@ const Loader = ({ themeName }: LoaderProps) => {
 
         {/* App Name */}
         <h1 className="gradient-text text-3xl font-bold tracking-tight">
-          TikVibe
+          {APP_CONFIG.appName}
         </h1>
 
         {/* Progress Bar */}

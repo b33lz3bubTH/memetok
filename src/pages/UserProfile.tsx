@@ -105,7 +105,7 @@ const UserProfile = () => {
                 >
                   <div className="relative w-full pt-[130%]">
                     {(() => {
-                      const mediaItems = post.media || (post.mediaId ? [{ type: post.mediaType || 'image', id: post.mediaId }] : []);
+                      const mediaItems = post.media || [];
                       const firstMedia = mediaItems[0];
                       const isVideo = firstMedia?.type === 'video';
                       return isVideo ? (
