@@ -1,5 +1,6 @@
 import { env } from '@/lib/env';
 import { cache } from '@/lib/cache';
+import { apiClient } from '@/lib/api-client';
 
 export type MediaType = 'video' | 'image';
 
@@ -32,21 +33,6 @@ export type Comment = {
   text: string;
   createdAt: string;
 };
-
-const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const bodyIsForm = init?.body instanceof FormData;
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      ...(bodyIsForm ? {} : { 'Content-Type': 'application/json' }),
-      ...(init?.headers ?? {}),
-    } as HeadersInit,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return (await res.json()) as T;
-}
 
 export const media = {
   async uploadWithProgress(
@@ -120,51 +106,40 @@ export const media = {
 
 export const postsApi = {
   async list(take = 10, skip = 0) {
-    const res = await apiFetch<{ items: Post[]; take: number; skip: number }>(`/api/posts?take=${take}&skip=${skip}`);
+    const res = await apiClient.query.listPosts({ take, skip });
     await cache.savePosts(res.items);
     return res;
   },
-  async create(input: { media: MediaItem[]; caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string }, token: string) {
-    return apiFetch<Post>('/api/posts', {
-      method: 'POST',
-      body: JSON.stringify(input),
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  },
+
   async get(postId: string) {
-    const post = await apiFetch<Post>(`/api/posts/${postId}`);
+    const post = await apiClient.query.getPost({ postId });
     await cache.savePost(post);
     return post;
   },
+
   async getStats(postId: string) {
-    const res = await apiFetch<{ stats: PostStats }>(`/api/posts/${postId}/stats`);
+    const res = await apiClient.query.getPostStats({ postId });
     await cache.saveStats(res.stats);
     return res;
   },
+
   async toggleLike(postId: string, token: string) {
-    return apiFetch<{ postId: string; liked: boolean; likes: number }>(`/api/posts/${postId}/like`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    apiClient.setToken(token);
+    return apiClient.mutation.toggleLike({ postId });
   },
+
   async listComments(postId: string, take = 20, skip = 0) {
-    const res = await apiFetch<{ items: Comment[]; take: number; skip: number }>(
-      `/api/posts/${postId}/comments?take=${take}&skip=${skip}`
-    );
+    const res = await apiClient.query.listComments({ postId, take, skip });
     await cache.saveComments(res.items);
     return res;
   },
+
   async addComment(postId: string, text: string, token: string) {
-    return apiFetch<Comment>(`/api/posts/${postId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    apiClient.setToken(token);
+    return apiClient.mutation.addComment({ postId, text });
   },
+
   async listByUser(userId: string, take = 50, skip = 0) {
-    return apiFetch<{ items: Post[]; take: number; skip: number; total?: number }>(
-      `/api/posts/user/${userId}?take=${take}&skip=${skip}`
-    );
+    return apiClient.query.listUserPosts({ userId, take, skip });
   },
 };
-

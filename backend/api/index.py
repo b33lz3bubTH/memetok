@@ -7,11 +7,14 @@ import time
 
 from config.config import settings
 from core.logger.logger import get_logger
-from core.services.dispatch.handlers import router as dispatch_router
-from core.resources.posts.handlers import router as posts_router
-from core.resources.jobs.handlers import router as jobs_router
 from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline_shared import get_shared_pipeline
+from core.services.cqrs.generic_route import router as generic_router
+from core.resources.posts.controller import router as posts_upload_router
+from core.services.cqrs.event_bus import get_event_bus
+from core.resources.posts.handlers import register_posts_handlers
+from core.resources.posts.service import PostsService
+from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
 
 
 logger = get_logger(__name__)
@@ -26,7 +29,23 @@ async def lifespan(app: FastAPI):
     pipeline = get_shared_pipeline()
     logger.info("upload pipeline workers started")
     
+    event_bus = get_event_bus()
+    event_bus.start()
+    logger.info("event bus started")
+    
+    posts_service = PostsService(
+        posts_repo=PostsRepository(),
+        likes_repo=LikesRepository(),
+        comments_repo=CommentsRepository(),
+        jobs_service=jobs_service,
+    )
+    register_posts_handlers(posts_service)
+    logger.info("posts handlers registered")
+    
     yield
+    
+    await event_bus.stop()
+    logger.info("event bus stopped")
     
     await jobs_service.stop_worker()
     logger.info("background queue worker stopped")
@@ -52,9 +71,8 @@ def create_app() -> FastAPI:
         expose_headers=["*"],
     )
 
-    app.include_router(dispatch_router, prefix="/api")
-    app.include_router(posts_router, prefix="/api")
-    app.include_router(jobs_router, prefix="/api")
+    app.include_router(generic_router)
+    app.include_router(posts_upload_router, prefix="/api")
 
     @app.middleware("http")
     async def _log_requests(request, call_next):  # type: ignore[no-untyped-def]
