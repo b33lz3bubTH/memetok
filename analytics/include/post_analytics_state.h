@@ -7,7 +7,10 @@
 #include <cstdint>
 #include <algorithm>
 
-constexpr size_t MAX_HOT_POSTS = 10;
+inline size_t g_max_hot_posts = 10;
+
+inline void set_max_hot_posts(size_t n) { g_max_hot_posts = n; }
+inline size_t get_max_hot_posts() { return g_max_hot_posts; }
 
 struct PostStats {
     uint64_t views = 0;

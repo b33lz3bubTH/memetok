@@ -173,7 +173,7 @@ private:
         
         log("batch flushed. total events: " + std::to_string(current_state_->total_events()) + 
             ", total visitors: " + std::to_string(current_state_->total_visitors()) +
-            ", mem: " + get_memory_usage() +
+            ", " + get_resource_usage() +
             ", hot posts in state: " + std::to_string(current_state_->hot_posts().size()) +
             ", post_stats entries: " + std::to_string(current_state_->post_stats().size()));
     }
@@ -201,14 +201,14 @@ private:
         
         const auto& hot_posts = current_state_->hot_posts();
         std::vector<std::string> top_hot_posts;
-        for (size_t i = 0; i < std::min(hot_posts.size(), MAX_HOT_POSTS); i++) {
+        for (size_t i = 0; i < std::min(hot_posts.size(), get_max_hot_posts()); i++) {
             top_hot_posts.push_back(hot_posts[i]);
         }
         j["hot_posts"] = top_hot_posts;
         
         const auto& most_played = current_state_->most_played();
         std::vector<std::string> top_most_played;
-        for (size_t i = 0; i < std::min(most_played.size(), MAX_HOT_POSTS); i++) {
+        for (size_t i = 0; i < std::min(most_played.size(), get_max_hot_posts()); i++) {
             top_most_played.push_back(most_played[i]);
         }
         j["most_played"] = top_most_played;
@@ -236,12 +236,21 @@ private:
         }
     }
     
-    std::string get_memory_usage() const {
+    std::string get_resource_usage() const {
         struct rusage usage;
+        std::stringstream ss;
+        
         if (getrusage(RUSAGE_SELF, &usage) == 0) {
             double mem_mb = static_cast<double>(usage.ru_maxrss) / 1024.0;
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << mem_mb << " MB";
+            double user_cpu = static_cast<double>(usage.ru_utime.tv_sec) + 
+                              static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0;
+            double sys_cpu = static_cast<double>(usage.ru_stime.tv_sec) + 
+                             static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+            
+            ss << std::fixed << std::setprecision(2);
+            ss << "ram: " << mem_mb << " MB, ";
+            ss << "cpu(user): " << user_cpu << "s, ";
+            ss << "cpu(sys): " << sys_cpu << "s";
             return ss.str();
         }
         return "unknown";

@@ -12,7 +12,7 @@ int main() {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> post_dist(1, 10);
+    std::uniform_int_distribution<> post_dist(18, 50);
     std::uniform_int_distribution<> user_dist(1, 50);
     std::uniform_int_distribution<> action_dist(0, 5);
 

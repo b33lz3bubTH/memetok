@@ -56,7 +56,7 @@ public:
         std::unordered_map<std::string, PostStats> hot_post_stats;
         
         for (const auto& [post_id, score] : sorted_posts) {
-            if (hot_posts.size() >= MAX_HOT_POSTS) break;
+            if (hot_posts.size() >= get_max_hot_posts()) break;
             
             hot_posts.push_back(post_id);
             
@@ -71,7 +71,7 @@ public:
         }
         
         for (const auto& post_id : prev_state_->hot_posts()) {
-            if (hot_posts.size() >= MAX_HOT_POSTS) break;
+            if (hot_posts.size() >= get_max_hot_posts()) break;
             
             bool already_in = false;
             for (const auto& hp : hot_posts) {
@@ -95,7 +95,7 @@ public:
                         }
                     }
                     
-                    if (it->second.score > lowest_score && hot_posts.size() == MAX_HOT_POSTS) {
+                    if (it->second.score > lowest_score && hot_posts.size() == get_max_hot_posts()) {
                         hot_post_stats.erase(hot_posts[lowest_idx]);
                         hot_posts[lowest_idx] = post_id;
                         hot_post_stats[post_id] = it->second;
@@ -158,7 +158,7 @@ public:
         std::vector<std::string> most_played;
         size_t count = 0;
         for (const auto& [post_id, _] : played_posts) {
-            if (count >= MAX_HOT_POSTS) break;
+            if (count >= get_max_hot_posts()) break;
             most_played.push_back(post_id);
             count++;
         }
