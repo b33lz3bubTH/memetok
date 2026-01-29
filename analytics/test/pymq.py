@@ -65,3 +65,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+"""
+nix-shell -p stdenv.cc.cc.lib
+export LD_LIBRARY_PATH=$(nix-build '<nixpkgs>' -A stdenv.cc.cc.lib --no-out-link)/lib:$LD_LIBRARY_PATH
+python3 pymq.py
+"""
