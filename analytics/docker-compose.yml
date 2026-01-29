@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analytics-sidecar
+    volumes:
+      - ./analytics_data:/app/build/analytics_data
+    working_dir: /app/build
+    command: ./analytics_sidecar

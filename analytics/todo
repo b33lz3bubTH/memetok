@@ -1,0 +1,4 @@
+1. the logic is awful, save in wal wal.log all the posts, but in states, only hot posts will be saved, not all posts.
+2. if the current state has a hot post, and in prev_state that post doesnt appears, then add it, replace it with a post that isnt that hot, with score.
+3. this way i can get top 10 posts, in recent times.
+4. show mem use, that will be better.
