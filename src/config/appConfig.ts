@@ -93,7 +93,7 @@ export interface VideoPost {
 }
 
 export const APP_CONFIG = {
-  appName: 'TikVibe',
+  appName: 'Memetok',
   version: '1.0.0',
   maxVideosToLoad: 5,
   intersectionThreshold: 0.5,

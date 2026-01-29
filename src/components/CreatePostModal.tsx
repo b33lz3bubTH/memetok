@@ -195,7 +195,7 @@ export default function CreatePostModal({
         token
       );
 
-      await dispatch(fetchFeed());
+      await dispatch(fetchFeed(1));
       toast({ title: 'Posted', description: 'Your post is live' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';

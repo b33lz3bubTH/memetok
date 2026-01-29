@@ -16,7 +16,7 @@ const toVideoPost = (p: Post, stats?: { likes: number; comments: number }): Vide
   const username = p.author?.username || (p.author?.userId ? `user_${p.author.userId.slice(-6)}` : 'user');
   const avatar = p.author?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
   
-  const mediaItems = p.media || (p.mediaId ? [{ type: p.mediaType || 'image', id: p.mediaId }] : []);
+  const mediaItems = p.media || [];
   const firstMedia = mediaItems[0];
   const isVideo = firstMedia?.type === 'video';
   
