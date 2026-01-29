@@ -1,0 +1,2 @@
+1. go through the analytics engine properly, use zeromq here to ingest analytics data, create a separate python pogram generate random posts analytics, and send to cpp program via zeromq, its a independent system make a folder /test/pymq.py
+do all these things in analytics folder

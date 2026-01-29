@@ -20,13 +20,19 @@ if(NOT nlohmann_json_FOUND)
     FetchContent_MakeAvailable(json)
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZMQ REQUIRED libzmq)
+
 add_executable(analytics_sidecar
     src/main.cpp
 )
 
+target_include_directories(analytics_sidecar PRIVATE ${ZMQ_INCLUDE_DIRS})
+
 target_link_libraries(analytics_sidecar
     PRIVATE
     nlohmann_json::nlohmann_json
+    ${ZMQ_LIBRARIES}
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
