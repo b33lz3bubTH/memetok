@@ -6,12 +6,26 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"sync/atomic"
 	"time"
 
 	"analyticsmicro/internal/model"
 	"analyticsmicro/internal/storage"
 )
+
+type VideoCount struct {
+	VideoID string `json:"video_id"`
+	Views   int    `json:"views"`
+}
+
+type AnalyticsResponse struct {
+	Days         int          `json:"days"`
+	TotalViews   int          `json:"total_views"`
+	TotalUsers   int          `json:"total_users"`
+	Top50Videos  []VideoCount `json:"top_50_videos"`
+	EventSupport []string     `json:"event_support"`
+}
 
 type Service struct {
 	store       *storage.Store
@@ -20,11 +34,21 @@ type Service struct {
 	snapshotReq chan struct{}
 	snapRunning atomic.Bool
 	logger      *log.Logger
+	strategies  map[string]EventStrategy
 }
 
 func NewService(store *storage.Store, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.New(io.Discard, "", 0)
+	}
+	strategies := map[string]EventStrategy{}
+	for _, strategy := range []EventStrategy{
+		ViewStrategy{},
+		NewNoopStrategy("search"),
+		NewNoopStrategy("like"),
+		NewNoopStrategy("comment"),
+	} {
+		strategies[strategy.Type()] = strategy
 	}
 	return &Service{
 		store:       store,
@@ -32,6 +56,7 @@ func NewService(store *storage.Store, logger *log.Logger) *Service {
 		processCh:   make(chan model.Event, EventChannelSize),
 		snapshotReq: make(chan struct{}, 1),
 		logger:      logger,
+		strategies:  strategies,
 	}
 }
 
@@ -107,19 +132,16 @@ func (s *Service) processBatch(events []model.Event) {
 	if len(events) == 0 {
 		return
 	}
-	viewsByDay := make(map[string]map[string]int)
-	dauByDay := make(map[string]map[string]struct{})
+	state := NewBatchState()
 	for _, ev := range events {
-		day := ev.DayKey()
-		if _, ok := viewsByDay[day]; !ok {
-			viewsByDay[day] = make(map[string]int)
-			dauByDay[day] = make(map[string]struct{})
+		strategy, ok := s.strategies[ev.Type]
+		if !ok {
+			continue
 		}
-		viewsByDay[day][ev.VideoID]++
-		dauByDay[day][storage.HashUserID(ev.UserID)] = struct{}{}
+		strategy.Accumulate(ev, state)
 	}
-	for day, views := range viewsByDay {
-		if err := s.store.AppendAggregates(day, views, dauByDay[day]); err != nil {
+	for _, day := range state.SortedDays() {
+		if err := s.strategies["view"].Flush(day, state, s.store); err != nil {
 			s.logger.Printf("append aggregate error: %v", err)
 			return
 		}
@@ -188,14 +210,52 @@ func (s *Service) runSnapshotWorker(ctx context.Context) {
 	}
 }
 
-func (s *Service) ReadAnalytics(days int) (map[string]int, error) {
+func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
 	if days <= 0 {
-		return nil, errors.New("days must be positive")
+		return AnalyticsResponse{}, errors.New("days must be positive")
 	}
+	views := map[string]int{}
 	if days == RollingWindowDays {
 		if snap, err := s.store.ReadSnapshot(); err == nil {
-			return snap, nil
+			views = snap
+		} else {
+			merged, mergeErr := s.store.MergeViews(time.Now(), days)
+			if mergeErr != nil {
+				return AnalyticsResponse{}, mergeErr
+			}
+			views = merged
 		}
+	} else {
+		merged, err := s.store.MergeViews(time.Now(), days)
+		if err != nil {
+			return AnalyticsResponse{}, err
+		}
+		views = merged
 	}
-	return s.store.MergeViews(time.Now(), days)
+	totalUsers, err := s.store.CountDistinctUsers(time.Now(), days)
+	if err != nil {
+		return AnalyticsResponse{}, err
+	}
+	totalViews := 0
+	top := make([]VideoCount, 0, len(views))
+	for videoID, count := range views {
+		totalViews += count
+		top = append(top, VideoCount{VideoID: videoID, Views: count})
+	}
+	sort.Slice(top, func(i, j int) bool {
+		if top[i].Views == top[j].Views {
+			return top[i].VideoID < top[j].VideoID
+		}
+		return top[i].Views > top[j].Views
+	})
+	if len(top) > 50 {
+		top = top[:50]
+	}
+	return AnalyticsResponse{
+		Days:         days,
+		TotalViews:   totalViews,
+		TotalUsers:   totalUsers,
+		Top50Videos:  top,
+		EventSupport: []string{"view", "search", "like", "comment"},
+	}, nil
 }

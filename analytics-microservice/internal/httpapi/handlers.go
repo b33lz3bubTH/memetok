@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"analyticsmicro/internal/engine"
@@ -24,9 +25,11 @@ func (s *Server) Routes() http.Handler {
 }
 
 type eventRequest struct {
-	Timestamp string `json:"timestamp"`
-	VideoID   string `json:"video_id"`
-	UserID    string `json:"user_id"`
+	Timestamp string            `json:"timestamp"`
+	Type      string            `json:"type"`
+	VideoID   string            `json:"video_id"`
+	UserID    string            `json:"user_id"`
+	Payload   map[string]string `json:"payload"`
 }
 
 func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +39,17 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ts, err := time.Parse(time.RFC3339, req.Timestamp)
-	if err != nil || req.VideoID == "" || req.UserID == "" {
+	if err != nil || strings.TrimSpace(req.Type) == "" {
 		http.Error(w, "invalid event", http.StatusBadRequest)
 		return
 	}
-	ev := model.Event{Timestamp: ts, VideoID: req.VideoID, UserID: req.UserID}
+	ev := model.Event{
+		Timestamp: ts,
+		Type:      strings.ToLower(strings.TrimSpace(req.Type)),
+		VideoID:   strings.TrimSpace(req.VideoID),
+		UserID:    strings.TrimSpace(req.UserID),
+		Payload:   req.Payload,
+	}
 	select {
 	case s.svc.IngestChan() <- ev:
 		w.WriteHeader(http.StatusOK)

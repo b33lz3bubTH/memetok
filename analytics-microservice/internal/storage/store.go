@@ -135,7 +135,7 @@ func (s *Store) LoadWALFromOffset(off int64) ([]model.Event, int64, error) {
 	return events, off + consumed, nil
 }
 
-func (s *Store) AppendAggregates(day string, views map[string]int, userHashes map[string]struct{}) error {
+func (s *Store) AppendViewDay(day string, views map[string]int, userHashes map[string]struct{}) error {
 	viewsPath := filepath.Join(s.Paths.ViewsDir, day+".seg")
 	dauPath := filepath.Join(s.Paths.DAUDir, day+".seg")
 
@@ -175,6 +175,34 @@ func (s *Store) AppendAggregates(day string, views map[string]int, userHashes ma
 		return err
 	}
 	return nil
+}
+
+func (s *Store) CountDistinctUsers(now time.Time, days int) (int, error) {
+	set := make(map[string]struct{}, 1024)
+	for i := 0; i < days; i++ {
+		day := now.UTC().AddDate(0, 0, -i).Format("2006-01-02")
+		path := filepath.Join(s.Paths.DAUDir, day+".seg")
+		f, err := os.Open(path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return 0, err
+		}
+		scan := bufio.NewScanner(f)
+		for scan.Scan() {
+			v := strings.TrimSpace(scan.Text())
+			if v != "" {
+				set[v] = struct{}{}
+			}
+		}
+		err = scan.Err()
+		_ = f.Close()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return len(set), nil
 }
 
 func (s *Store) BuildRollingSnapshot(now time.Time, days int) error {

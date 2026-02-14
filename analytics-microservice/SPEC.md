@@ -7,6 +7,7 @@ analytics-microservice/
   internal/storage/paths.go
   internal/storage/store.go
   internal/engine/config.go
+  internal/engine/strategy.go
   internal/engine/service.go
   internal/httpapi/handlers.go
   data/
@@ -22,26 +23,29 @@ analytics-microservice/
 ```go
 type Event struct {
   Timestamp time.Time
+  Type      string
   VideoID   string
   UserID    string
+  Payload   map[string]string
 }
 
-type Service struct {
-  store       *Store
-  ingestCh    chan Event      // fixed size
-  processCh   chan Event      // fixed size
-  snapshotReq chan struct{}   // fixed size 1
-  snapRunning atomic.Bool
+type EventStrategy interface {
+  Type() string
+  Accumulate(event Event, state *BatchState)
+  Flush(day string, state *BatchState, store *Store) error
 }
 
-type Store struct {
-  Paths struct {
-    WALPath       string
-    WALOffsetPath string
-    ViewsDir      string
-    DAUDir        string
-    SnapshotPath  string
-  }
+type BatchState struct {
+  ViewsByDay map[string]map[string]int
+  DAUByDay   map[string]map[string]struct{}
+}
+
+type AnalyticsResponse struct {
+  Days         int
+  TotalViews   int
+  TotalUsers   int
+  Top50Videos  []VideoCount
+  EventSupport []string
 }
 ```
 
@@ -49,26 +53,10 @@ type Store struct {
 
 ```text
 G1 main goroutine
-  - boot service
-  - start HTTP server
-
 G2 WAL writer goroutine
-  - read ingestCh
-  - append event to WAL
-  - fsync WAL
-  - forward event to processCh
-
 G3 processor goroutine
-  - maintain []Event buffer
-  - maintain ticker(2m)
-  - process batch on size>=1000 OR ticker fire with buffer>0
-
 G4 snapshot ticker goroutine
-  - ticker(5m)
-  - enqueue snapshot request if none pending
-
 G5 snapshot worker goroutine
-  - serialize snapshot build execution
 ```
 
 # Pseudocode
@@ -81,75 +69,65 @@ loop:
   select
     case ctx done: return
     case ev <- ingestCh:
-      write json(ev)+"\n" to WAL
+      append raw json event to WAL
       fsync WAL
-      send ev to processCh (blocking select on ctx/processCh)
+      forward ev to processCh
 ```
 
 ## Processor
 
 ```text
-buffer := make([]Event, 0, 1000)
-ticker := NewTicker(2m)
+buffer := []Event capacity 1000
+ticker := 2m
 loop:
   select
     case ctx done: return
     case ev <- processCh:
-      append(buffer, ev)
+      buffer append ev
       if len(buffer) >= 1000:
         process_once(buffer)
-        clear(buffer)
+        clear buffer
     case <-ticker:
       if len(buffer) > 0:
         process_once(buffer)
-        clear(buffer)
+        clear buffer
 
 process_once(events):
-  group by day
-  for each day:
-    viewsMap[videoID]++
-    dauSet[hash(userID)] = true
-    append viewsMap lines to /segments/views/day.seg
-    append dauSet lines to /segments/dau/day.seg
-    fsync segment files
-  walEnd := seek WAL end
-  write wal.offset with walEnd using temp->fsync->rename
-  fsync meta dir
+  state := new BatchState
+  for ev in events:
+    strategy := strategies[ev.Type]
+    if exists: strategy.Accumulate(ev, state)
+  for each day in sorted state days:
+    strategy("view").Flush(day, state, store)
+  write wal.offset with WAL end (temp->fsync->rename)
 ```
 
 ## Recovery
 
 ```text
-startup:
-  off := read wal.offset
-  seek WAL to off
-  events := read remaining WAL lines
-  if len(events) > 0:
-    process_once(events)
-    write wal.offset = off + bytes_read using temp->fsync->rename
-  enter normal runtime loops
+read wal.offset
+seek WAL to offset
+read remaining events
+if events not empty:
+  process_once(events)
+  write wal.offset=old_offset+bytes_read
+continue runtime loops
 ```
 
 ## Snapshot builder
 
 ```text
-ticker goroutine every 5m:
-  try nonblocking enqueue snapshotReq
-
-worker goroutine loop:
+every 5m enqueue snapshot request nonblocking
+worker loop:
   select
     case ctx done: return
     case <-snapshotReq:
-      if not currently running:
+      if not running:
         mark running
-        agg := empty map[videoID]int
-        for d in last 30 days:
-          stream read /segments/views/day.seg
-          merge counts into agg
-        write agg json to temp snapshot
-        fsync temp
-        rename temp -> views.rolling30.snapshot
-        fsync snapshots dir
+        merge last 30 view segment files
+        write temp snapshot
+        fsync
+        atomic rename
         mark not running
 ```
 
@@ -157,17 +135,15 @@ worker goroutine loop:
 
 ```text
 POST /events:
-  decode+validate request
-  select
-    case ingestCh <- Event: return 200 immediately
-    default: return 503 queue full
-  never touch disk
+  validate timestamp + type
+  enqueue Event on ingest channel
+  immediate 200 on success
+  no disk access
 
-GET /analytics?days=30:
-  parse days
-  if days==30 and snapshot exists:
-    read snapshot and return
-  else:
-    stream merge segment files for requested days
-    return merged counts
+GET /analytics?days=N:
+  if N==30 and snapshot exists -> read snapshot
+  else merge view segments
+  count distinct users from dau segments
+  compute total views + top 50 videos
+  return response
 ```
