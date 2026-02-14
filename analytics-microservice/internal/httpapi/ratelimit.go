@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -70,17 +71,16 @@ func (rl *rateLimiter) allow(ip string) bool {
 }
 
 func (rl *rateLimiter) getIP(r *http.Request) string {
-	ip := r.Header.Get("X-Forwarded-For")
-	if ip != "" {
-		if idx := len(ip) - 1; idx >= 0 && ip[idx] == ',' {
-			ip = ip[:idx]
-		}
-		if parsed := net.ParseIP(ip); parsed != nil {
-			return ip
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		for _, part := range parts {
+			ip := strings.TrimSpace(part)
+			if parsed := net.ParseIP(ip); parsed != nil {
+				return ip
+			}
 		}
 	}
-	ip = r.Header.Get("X-Real-IP")
-	if ip != "" {
+	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
 		if parsed := net.ParseIP(ip); parsed != nil {
 			return ip
 		}

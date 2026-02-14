@@ -6,24 +6,53 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: analytics-service
+    environment:
+      ANALYTICS_PORT: 8997
+      ANALYTICS_DATA_DIR: /app/data
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-}
     volumes:
       - analytics-data-website:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8997/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - analytics-network
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    tmpfs:
+      - /tmp:size=32m
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: analytics-nginx
     ports:
       - "8997:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - analytics
+      analytics:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - analytics-network
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=4m
+      - /tmp:size=16m
 
 volumes:
   analytics-data-website:
