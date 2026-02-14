@@ -27,3 +27,5 @@ dist-ssr
 __pycache__/
 venv
 .venv
+
+analytics-microservice/data
