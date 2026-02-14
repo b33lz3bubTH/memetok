@@ -26,7 +26,7 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:              ":8081",
+		Addr:              ":8997",
 		ReadHeaderTimeout: 5 * time.Second,
 		Handler:           httpapi.NewServer(svc).Routes(),
 	}
@@ -37,7 +37,7 @@ func main() {
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()
-
+	logger.Println("[info]: starting the analytics server 8997")
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Fatalf("server failed: %v", err)
 	}
