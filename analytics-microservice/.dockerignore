@@ -1,0 +1,9 @@
+data/
+analytics
+*.log
+.git
+.gitignore
+README.md
+SPEC.md
+.vscode
+.idea

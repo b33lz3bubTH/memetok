@@ -29,3 +29,4 @@ venv
 .venv
 
 analytics-microservice/data
+analytics-microservice/analytics

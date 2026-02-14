@@ -18,10 +18,11 @@ type Server struct {
 func NewServer(svc *engine.Service) *Server { return &Server{svc: svc} }
 
 func (s *Server) Routes() http.Handler {
+	limiter := newRateLimiter(80, 1*time.Minute)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /events", s.handleEvent)
 	mux.HandleFunc("GET /analytics", s.handleAnalytics)
-	return mux
+	return limiter.middleware(mux)
 }
 
 type eventRequest struct {
