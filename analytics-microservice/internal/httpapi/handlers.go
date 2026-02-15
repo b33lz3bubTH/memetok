@@ -22,6 +22,7 @@ func NewServer(svc *engine.Service, apiKey string) *Server { return &Server{svc:
 
 func (s *Server) Routes() http.Handler {
 	limiter := newRateLimiter(120, 1*time.Minute)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /events", s.handleEvent)
 	mux.HandleFunc("GET /analytics", s.handleAnalytics)
@@ -29,12 +30,16 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /readyz", s.handleReady)
 
 	var handler http.Handler = mux
-	handler = corsMiddleware(handler)
+
 	handler = limiter.middleware(handler)
 	handler = methodGuardMiddleware(handler)
 	handler = requestIDMiddleware(handler)
 	handler = securityHeadersMiddleware(handler)
 	handler = recoverMiddleware(handler)
+
+	// ⚠️ CORS LAST (so it runs FIRST)
+	handler = corsMiddleware(handler)
+
 	return handler
 }
 
