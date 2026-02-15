@@ -29,7 +29,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /readyz", s.handleReady)
 
 	var handler http.Handler = mux
-	handler = authMiddleware(s.apiKey, handler)
+	handler = corsMiddleware(handler)
 	handler = limiter.middleware(handler)
 	handler = methodGuardMiddleware(handler)
 	handler = requestIDMiddleware(handler)
@@ -84,6 +84,12 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(s.apiKey) != "" {
+		if r.URL.Query().Get("api_key") != s.apiKey {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
 	days := 30
 	if q := r.URL.Query().Get("days"); q != "" {
 		parsed, err := strconv.Atoi(q)

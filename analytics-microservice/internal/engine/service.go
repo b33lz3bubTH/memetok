@@ -132,19 +132,25 @@ func (s *Service) processBatch(events []model.Event) {
 	if len(events) == 0 {
 		return
 	}
+	s.logger.Printf("processing batch of %d events", len(events))
 	state := NewBatchState()
+	processedCount := 0
 	for _, ev := range events {
 		strategy, ok := s.strategies[ev.Type]
 		if !ok {
+			s.logger.Printf("unknown event type: %s", ev.Type)
 			continue
 		}
 		strategy.Accumulate(ev, state)
+		processedCount++
 	}
+	s.logger.Printf("processed %d events, days with data: %d", processedCount, len(state.ViewsByDay))
 	for _, day := range state.SortedDays() {
 		if err := s.strategies["view"].Flush(day, state, s.store); err != nil {
 			s.logger.Printf("append aggregate error: %v", err)
 			return
 		}
+		s.logger.Printf("flushed day %s with %d videos", day, len(state.ViewsByDay[day]))
 	}
 	f, err := os.OpenFile(s.store.Paths.WALPath, os.O_RDONLY, 0o644)
 	if err != nil {
