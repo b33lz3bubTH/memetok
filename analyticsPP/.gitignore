@@ -1,6 +1,0 @@
-build/
-bin/
-analytics_data/
-*.log
-*.json
-cmake-build-*/

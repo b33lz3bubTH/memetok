@@ -1,9 +1,0 @@
-build/
-bin/
-analytics_data/
-*.log
-*.json
-.git/
-.gitignore
-.vscode/
-.idea/
