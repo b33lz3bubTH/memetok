@@ -37,7 +37,7 @@ func (s *Server) Routes() http.Handler {
 	handler = securityHeadersMiddleware(handler)
 	handler = recoverMiddleware(handler)
 
-	// ⚠️ CORS LAST (so it runs FIRST)
+	// ⚠ CORS LAST (so it runs FIRST)
 	handler = corsMiddleware(handler)
 
 	return handler
