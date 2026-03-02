@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -38,7 +39,7 @@ type Service struct {
 	strategies  map[string]EventStrategy
 
 	analyticsMu sync.Mutex
-	analytics   cachedAnalytics
+	analytics   map[int]cachedAnalytics
 }
 
 type cachedAnalytics struct {
@@ -66,6 +67,7 @@ func NewService(store *storage.Store, logger *log.Logger) *Service {
 		snapshotReq: make(chan struct{}, 1),
 		logger:      logger,
 		strategies:  strategies,
+		analytics:   make(map[int]cachedAnalytics),
 	}
 }
 
@@ -287,8 +289,8 @@ func (s *Service) runRetentionWorker(ctx context.Context) {
 	}
 }
 
-func (s *Service) ReadAnalytics(_ int) (AnalyticsResponse, error) {
-	payload, err := s.ReadAnalyticsJSON()
+func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
+	payload, err := s.ReadAnalyticsJSON(days)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
@@ -299,16 +301,20 @@ func (s *Service) ReadAnalytics(_ int) (AnalyticsResponse, error) {
 	return out, nil
 }
 
-func (s *Service) ReadAnalyticsJSON() ([]byte, error) {
+func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
+	if days < 1 || days > RollingWindowDays {
+		return nil, fmt.Errorf("days must be between 1 and %d", RollingWindowDays)
+	}
+
 	now := time.Now()
 	s.analyticsMu.Lock()
 	defer s.analyticsMu.Unlock()
 
-	if len(s.analytics.json) > 0 && now.Before(s.analytics.expiresAt) {
-		return append([]byte(nil), s.analytics.json...), nil
+	if cached, ok := s.analytics[days]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
+		return append([]byte(nil), cached.json...), nil
 	}
 
-	resp, err := s.buildAnalytics(now)
+	resp, err := s.buildAnalytics(now, days)
 	if err != nil {
 		return nil, err
 	}
@@ -316,17 +322,14 @@ func (s *Service) ReadAnalyticsJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.analytics = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
+	s.analytics[days] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
 	return append([]byte(nil), payload...), nil
 }
 
-func (s *Service) buildAnalytics(now time.Time) (AnalyticsResponse, error) {
-	views, err := s.store.ReadSnapshot()
+func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, error) {
+	views, err := s.store.MergeViews(now, days)
 	if err != nil {
-		views, err = s.store.MergeViews(now, RollingWindowDays)
-		if err != nil {
-			return AnalyticsResponse{}, err
-		}
+		return AnalyticsResponse{}, err
 	}
 
 	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
@@ -348,7 +351,7 @@ func (s *Service) buildAnalytics(now time.Time) (AnalyticsResponse, error) {
 		top = top[:50]
 	}
 	return AnalyticsResponse{
-		WindowDays:        RollingWindowDays,
+		WindowDays:        days,
 		UniqueUsers24h:    totalUsers,
 		Top50Videos:       top,
 		ProcessedEventLog: []string{"view", "search", "like", "comment"},
@@ -357,6 +360,6 @@ func (s *Service) buildAnalytics(now time.Time) (AnalyticsResponse, error) {
 
 func (s *Service) invalidateAnalyticsCache() {
 	s.analyticsMu.Lock()
-	s.analytics = cachedAnalytics{}
+	s.analytics = make(map[int]cachedAnalytics)
 	s.analyticsMu.Unlock()
 }
