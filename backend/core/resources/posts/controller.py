@@ -65,36 +65,17 @@ async def upload_and_create_post(
     username: str | None = Form(default=None),
     profilePhoto: str | None = Form(default=None),
     x_api_key: str = Header(default=None, alias="X-API-KEY"),
-    user_id: str = Form(default=None),
-    authorization: str = Header(default=None),
 ):
     if not x_api_key or x_api_key != settings.uploader_api_key:
         logger.info("upload denied: invalid or missing API key")
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-
-    try:
-        token = authorization.split(" ", 1)[1].strip()
-        token_user_id = await verify_clerk_bearer_token(token)
-    except AuthError as exc:
-        raise HTTPException(status_code=401, detail="Invalid bearer token") from exc
-
-    if not user_id:
-        logger.info("upload denied: missing user_id")
-        raise HTTPException(status_code=400, detail="user_id is required")
-    if token_user_id != user_id:
-        raise HTTPException(status_code=403, detail="user_id does not match authenticated user")
-    if user_id != settings.uploader_user_id:
-        logger.info("upload denied: user_id=%s is not configured uploader", user_id)
-        raise HTTPException(status_code=403, detail="Only the configured uploader account may upload")
 
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required")
     if len(files) > settings.upload_max_files:
         raise HTTPException(status_code=400, detail=f"Maximum {settings.upload_max_files} files allowed")
 
-    logger.info("upload_and_create_post user_id=%s file_count=%s", user_id, len(files))
+    logger.info("upload_and_create_post user_id=%s file_count=%s", settings.uploader_user_id, len(files))
 
     videos = []
     images = []
@@ -119,11 +100,11 @@ async def upload_and_create_post(
     tag_list = [t.strip() for t in tags.split(",") if t.strip()][:20]
 
     post = await _svc.create_post(
-        user_id=user_id,
+        user_id=settings.uploader_user_id,
         caption=caption,
         description=description,
         tags=tag_list,
-        username=username,
+        username=settings.uploader_user_id,
         profile_photo=profilePhoto,
     )
 
@@ -167,7 +148,7 @@ async def upload_and_create_post(
 
     context = PipelineContext(
         post_id=post.id,
-        user_id=user_id,
+        user_id=settings.uploader_user_id,
         files=file_infos,
         tmp_dir=str(tmp_dir),
     )
