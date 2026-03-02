@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     internal_jobs_secret: str = "change-me"
 
     uploader_api_key: str = "change-uploader-key"
+    uploader_user_id: str = "dev-user"
+    upload_max_files: int = 8
+    upload_max_file_size_mb: int = 250
+    upload_ingest_concurrency: int = 8
 
     cors_allow_origins: List[str] = ["*"]
 
@@ -45,4 +49,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
