@@ -34,7 +34,7 @@ export ANALYTICS_API_KEY="change-me"
 docker compose up --build -d
 ```
 
-Requests to non-health endpoints require `X-API-Key` when `ANALYTICS_API_KEY` is set.
+Requests to non-health endpoints require `X-API-Key` when `ANALYTICS_API_KEY` is set (query param auth is not used).
 
 ## API quick checks
 
@@ -61,4 +61,5 @@ curl -s "$BASE_URL/analytics" \
 - The analytics API is fixed to:
   - unique users over the last 24 hours
   - top 50 videos over the last 30 days
+  - cached analytics payloads (2s TTL) to avoid repeated segment scans under high read throughput
 - Backlogs older than 30 days are cleaned from segments and rotated WAL files on a periodic retention sweep.

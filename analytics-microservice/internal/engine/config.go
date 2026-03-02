@@ -7,6 +7,7 @@ const (
 	EventChannelSize     = 65536
 	FlushInterval        = 10 * time.Second
 	SnapshotInterval     = 5 * time.Minute
+	AnalyticsCacheTTL    = 2 * time.Second
 	RollingWindowDays    = 30
 	UniqueUsersWindowDay = 1
 	WALFlushInterval     = 250 * time.Millisecond

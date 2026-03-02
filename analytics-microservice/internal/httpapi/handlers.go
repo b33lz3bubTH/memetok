@@ -35,6 +35,7 @@ func (s *Server) Routes() http.Handler {
 	handler = requestIDMiddleware(handler)
 	handler = securityHeadersMiddleware(handler)
 	handler = recoverMiddleware(handler)
+	handler = authMiddleware(s.apiKey, handler)
 
 	// ⚠ CORS LAST (so it runs FIRST)
 	handler = corsMiddleware(handler)
@@ -87,20 +88,14 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
-	if strings.TrimSpace(s.apiKey) != "" {
-		if r.URL.Query().Get("api_key") != s.apiKey {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-	}
-	out, err := s.svc.ReadAnalytics(0)
+func (s *Server) handleAnalytics(w http.ResponseWriter, _ *http.Request) {
+	payload, err := s.svc.ReadAnalyticsJSON()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(out)
+	_, _ = w.Write(payload)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
