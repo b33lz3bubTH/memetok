@@ -63,18 +63,20 @@ invalid event
 
 ## GET /analytics
 
-Get analytics data. Requires `api_key` query parameter.
+Get analytics data. Requires `X-API-Key` header if API key auth is enabled.
 
 ### Get Analytics (Default 30 days)
 
 ```bash
-curl "http://localhost:8997/analytics?api_key=YOUR_API_KEY"
+curl "http://localhost:8997/analytics" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 ### Get Analytics for Specific Days
 
 ```bash
-curl "http://localhost:8997/analytics?api_key=YOUR_API_KEY&days=7"
+curl "http://localhost:8997/analytics?days=7" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 ### Response
@@ -82,16 +84,16 @@ curl "http://localhost:8997/analytics?api_key=YOUR_API_KEY&days=7"
 Success (200 OK):
 ```json
 {
-  "total_events": 1500,
-  "events_by_type": {
-    "view": 800,
-    "play": 500,
-    "like": 200
-  },
-  "events_by_day": {
-    "2024-01-15": 100,
-    "2024-01-16": 120
-  }
+  "window_days": 7,
+  "total_views": 1500,
+  "unique_users": 920,
+  "top_50_videos": [
+    {
+      "video_id": "video123",
+      "views": 120
+    }
+  ],
+  "processed_event_log": ["view", "search", "like", "comment"]
 }
 ```
 

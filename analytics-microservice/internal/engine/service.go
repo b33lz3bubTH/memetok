@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -24,7 +25,8 @@ type VideoCount struct {
 
 type AnalyticsResponse struct {
 	WindowDays        int          `json:"window_days"`
-	UniqueUsers24h    int          `json:"unique_users_24h"`
+	TotalViews        int          `json:"total_views"`
+	UniqueUsers       int          `json:"unique_users"`
 	Top50Videos       []VideoCount `json:"top_50_videos"`
 	ProcessedEventLog []string     `json:"processed_event_log"`
 }
@@ -79,6 +81,9 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	if err := s.recoverOnce(); err != nil {
 		return err
+	}
+	if err := s.store.CleanupOldData(time.Now(), RollingWindowDays); err != nil {
+		s.logger.Printf("startup retention cleanup error: %v", err)
 	}
 	go s.runWALWriter(ctx)
 	go s.runProcessor(ctx)
@@ -308,11 +313,11 @@ func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
 
 	now := time.Now()
 	s.analyticsMu.Lock()
-	defer s.analyticsMu.Unlock()
-
 	if cached, ok := s.analytics[days]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
+		s.analyticsMu.Unlock()
 		return append([]byte(nil), cached.json...), nil
 	}
+	s.analyticsMu.Unlock()
 
 	resp, err := s.buildAnalytics(now, days)
 	if err != nil {
@@ -322,23 +327,39 @@ func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.analyticsMu.Lock()
 	s.analytics[days] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
+	s.analyticsMu.Unlock()
 	return append([]byte(nil), payload...), nil
 }
 
 func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, error) {
-	views, err := s.store.MergeViews(now, days)
+	var (
+		views map[string]int
+		err   error
+	)
+	if days == RollingWindowDays {
+		views, err = s.store.ReadSnapshot()
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return AnalyticsResponse{}, err
+		}
+	}
+	if views == nil {
+		views, err = s.store.MergeViews(now, days)
+		if err != nil {
+			return AnalyticsResponse{}, err
+		}
+	}
+
+	totalUsers, err := s.store.CountDistinctUsers(now, days)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
 
-	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
-	if err != nil {
-		return AnalyticsResponse{}, err
-	}
-
+	totalViews := 0
 	top := make([]VideoCount, 0, len(views))
 	for videoID, count := range views {
+		totalViews += count
 		top = append(top, VideoCount{VideoID: videoID, Views: count})
 	}
 	sort.Slice(top, func(i, j int) bool {
@@ -352,7 +373,8 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 	}
 	return AnalyticsResponse{
 		WindowDays:        days,
-		UniqueUsers24h:    totalUsers,
+		TotalViews:        totalViews,
+		UniqueUsers:       totalUsers,
 		Top50Videos:       top,
 		ProcessedEventLog: []string{"view", "search", "like", "comment"},
 	}, nil
