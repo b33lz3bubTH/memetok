@@ -75,7 +75,7 @@ const UserProfile = () => {
                 <button
                   onClick={() => {
                     setIsOpen(false);
-                    navigate('/uploader');
+                    navigate('/upload');
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
                 >
