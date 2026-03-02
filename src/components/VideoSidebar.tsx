@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setLikedState, setLikesCount, toggleLike, fetchPostStats } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
-import { Heart, MessageCircle, Share2, Music } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music, Bookmark } from 'lucide-react';
 import gsap from 'gsap';
 import { animate } from 'animejs';
 import { postsApi } from '@/lib/api';
@@ -35,6 +35,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
 
   const [statsLoaded, setStatsLoaded] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     if (!statsLoaded) {
@@ -106,6 +107,17 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
     setShareModalOpen(true);
   }, []);
 
+  const handleSave = useCallback(async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const res = await postsApi.toggleSave(video.id, token);
+      setIsSaved(res.saved);
+    } catch {
+      // ignore
+    }
+  }, [getToken, video.id]);
+
   return (
     <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center gap-5">
       {/* Profile Avatar */}
@@ -149,6 +161,24 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         </div>
       </button>
 
+
+      {/* Save Button */}
+      <SignedOut>
+        <SignInButton mode="modal">
+          <button className="action-btn">
+            <div className="action-btn-icon">
+              <Bookmark className="w-7 h-7 text-white" />
+            </div>
+          </button>
+        </SignInButton>
+      </SignedOut>
+      <SignedIn>
+        <button className="action-btn" onClick={handleSave}>
+          <div className="action-btn-icon">
+            <Bookmark className={`w-7 h-7 ${isSaved ? 'text-yellow-300' : 'text-white'}`} fill={isSaved ? 'currentColor' : 'none'} />
+          </div>
+        </button>
+      </SignedIn>
       {/* Share Button */}
       <button className="action-btn" onClick={handleShare}>
         <div className="action-btn-icon">

@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import UserProfile from "./pages/UserProfile";
 import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
+import UploaderPortal from "./pages/UploaderPortal";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/user" element={<UserProfile />} />
               <Route path="/post/:postId" element={<PostPage />} />
+              <Route path="/uploader" element={<UploaderPortal />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

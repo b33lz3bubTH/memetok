@@ -7,7 +7,6 @@ import { postsApi, Comment } from '@/lib/api';
 import { SignInButton, SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { incCommentsCount, fetchPostStats } from '@/store/slices/feedSlice';
 import { cache } from '@/lib/cache';
-import CreatePostButton from './CreatePostButton';
 
 const CommentDrawer = () => {
   const dispatch = useAppDispatch();

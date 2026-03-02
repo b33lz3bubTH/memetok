@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from pymongo import ReturnDocument
 
 from database.mongo_factory import get_mongo
-from core.resources.posts.constants import COMMENTS_COLLECTION, LIKES_COLLECTION, POSTS_COLLECTION
+from core.resources.posts.constants import COMMENTS_COLLECTION, LIKES_COLLECTION, POSTS_COLLECTION, SAVED_POSTS_COLLECTION
 from common.app_constants import POST_STATUS_POSTED
 
 
@@ -88,6 +88,34 @@ class LikesRepository:
         await mongo.db[LIKES_COLLECTION].insert_one({"postId": post_id, "userId": user_id, "createdAt": now})
         return True
 
+
+
+
+@dataclass
+class SavedPostsRepository:
+    async def toggle(self, post_id: str, user_id: str, now: datetime) -> bool:
+        mongo = get_mongo()
+        existing = await mongo.db[SAVED_POSTS_COLLECTION].find_one({"postId": post_id, "userId": user_id})
+        if existing:
+            await mongo.db[SAVED_POSTS_COLLECTION].delete_one({"_id": existing["_id"]})
+            return False
+        await mongo.db[SAVED_POSTS_COLLECTION].insert_one({"postId": post_id, "userId": user_id, "createdAt": now})
+        return True
+
+    async def list_saved_post_ids(self, user_id: str, take: int, skip: int) -> List[str]:
+        mongo = get_mongo()
+        cursor = (
+            mongo.db[SAVED_POSTS_COLLECTION]
+            .find({"userId": user_id}, {"_id": 0, "postId": 1})
+            .sort("createdAt", -1)
+            .skip(skip)
+            .limit(take)
+        )
+        return [d["postId"] async for d in cursor]
+
+    async def count_saved_posts(self, user_id: str) -> int:
+        mongo = get_mongo()
+        return await mongo.db[SAVED_POSTS_COLLECTION].count_documents({"userId": user_id})
 
 @dataclass
 class CommentsRepository:

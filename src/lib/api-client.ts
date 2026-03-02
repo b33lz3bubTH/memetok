@@ -9,11 +9,13 @@ type QueryPayload = {
   [PostsQueryAction.LIST_USER_POSTS]: { userId: string; take?: number; skip?: number };
   [PostsQueryAction.GET_POST_STATS]: { postId: string };
   [PostsQueryAction.LIST_COMMENTS]: { postId: string; take?: number; skip?: number };
+  [PostsQueryAction.LIST_SAVED_POSTS]: { take?: number; skip?: number };
 };
 
 type MutationPayload = {
   [PostsMutationAction.TOGGLE_LIKE]: { postId: string };
   [PostsMutationAction.ADD_COMMENT]: { postId: string; text: string };
+  [PostsMutationAction.TOGGLE_SAVE_POST]: { postId: string };
 };
 
 class ApiClient {
@@ -98,6 +100,14 @@ class ApiClient {
         payload
       );
     },
+
+    listSavedPosts: async (payload: QueryPayload[typeof PostsQueryAction.LIST_SAVED_POSTS] = {}) => {
+      return this.execute<{ items: any[]; take: number; skip: number; total?: number }>(
+        'query',
+        PostsQueryAction.LIST_SAVED_POSTS,
+        payload
+      );
+    },
   };
 
   mutation = {
@@ -111,6 +121,10 @@ class ApiClient {
 
     addComment: async (payload: MutationPayload[typeof PostsMutationAction.ADD_COMMENT]) => {
       return this.execute<any>('mutation', PostsMutationAction.ADD_COMMENT, payload);
+    },
+
+    toggleSavePost: async (payload: MutationPayload[typeof PostsMutationAction.TOGGLE_SAVE_POST]) => {
+      return this.execute<{ postId: string; saved: boolean }>('mutation', PostsMutationAction.TOGGLE_SAVE_POST, payload);
     },
   };
 }

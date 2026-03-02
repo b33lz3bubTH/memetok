@@ -9,7 +9,7 @@ from database.mongo_common import now_utc
 from core.resources.jobs.service import JobsService
 from core.resources.posts.dtos import CommentDTO, MediaType, MediaItem, PostDTO, PostListDTO, PostStatsDTO
 from core.resources.posts.exceptions import PostNotFoundError
-from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
+from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
 from core.resources.posts.validators import normalize_tags
 from core.logger.logger import get_logger
 
@@ -22,6 +22,7 @@ class PostsService:
     posts_repo: PostsRepository
     likes_repo: LikesRepository
     comments_repo: CommentsRepository
+    saved_posts_repo: SavedPostsRepository
     jobs_service: JobsService
 
     async def create_post(self, user_id: str, caption: str, description: str, tags: list[str], username: str | None = None, profile_photo: str | None = None) -> PostDTO:
@@ -60,6 +61,24 @@ class PostsService:
     async def count_posts_by_user(self, user_id: str) -> int:
         return await self.posts_repo.count_posts_by_user(user_id=user_id)
 
+
+
+    async def list_saved_posts(self, user_id: str, take: int, skip: int) -> List[PostListDTO]:
+        post_ids = await self.saved_posts_repo.list_saved_post_ids(user_id=user_id, take=take, skip=skip)
+        if not post_ids:
+            return []
+
+        items: List[PostListDTO] = []
+        for post_id in post_ids:
+            post = await self.posts_repo.find_by_id(post_id)
+            if not post or post.get("status") != "posted":
+                continue
+            items.append(PostListDTO.model_validate(post))
+        return items
+
+    async def count_saved_posts(self, user_id: str) -> int:
+        return await self.saved_posts_repo.count_saved_posts(user_id=user_id)
+
     async def get_post(self, post_id: str) -> PostDTO:
         doc = await self.posts_repo.find_by_id(post_id)
         if not doc:
@@ -86,6 +105,16 @@ class PostsService:
         updated = await self.posts_repo.inc_counts(post_id=post_id, likes_delta=delta)
         likes = int((updated or post).get("stats", {}).get("likes", 0))
         return liked, likes
+
+
+
+    async def toggle_save_post(self, post_id: str, user_id: str) -> bool:
+        post = await self.posts_repo.find_by_id(post_id)
+        if not post or post.get("status") != "posted":
+            raise PostNotFoundError()
+
+        now = now_utc()
+        return await self.saved_posts_repo.toggle(post_id=post_id, user_id=user_id, now=now)
 
     async def add_comment(self, post_id: str, user_id: str, text: str) -> CommentDTO:
         post = await self.posts_repo.find_by_id(post_id)

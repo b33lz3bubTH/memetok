@@ -1,4 +1,4 @@
 POSTS_COLLECTION = "posts"
 COMMENTS_COLLECTION = "comments"
 LIKES_COLLECTION = "likes"
-
+SAVED_POSTS_COLLECTION = "saved_posts"

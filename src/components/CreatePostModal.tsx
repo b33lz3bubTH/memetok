@@ -43,9 +43,11 @@ function parseTags(raw: string): string[] {
 export default function CreatePostModal({
   open,
   onOpenChange,
+  uploaderApiKey,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  uploaderApiKey: string;
 }) {
   const dispatch = useAppDispatch();
   const { getToken } = useAuth();
@@ -191,8 +193,9 @@ export default function CreatePostModal({
           tags,
           username: user?.fullName || user?.username || undefined,
           profilePhoto: user?.imageUrl || undefined,
+          userId: user?.id || '',
         },
-        token
+        { token: token || undefined, uploaderApiKey }
       );
 
       await dispatch(fetchFeed(1));
