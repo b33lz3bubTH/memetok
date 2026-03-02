@@ -44,7 +44,7 @@ as this project is serverless, there will cqrs setup, common api decide which ev
     type: "query",
     busName: "PostsQueryBus",
     payload: {
-        query: "SELECT * FROM posts",
+        query: "posts.query",
         params: {
             limit: 10,
             offset: 0

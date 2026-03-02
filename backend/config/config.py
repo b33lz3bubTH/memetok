@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     internal_jobs_secret: str = "change-me"
 
+    uploader_api_key: str = "change-uploader-key"
+
     cors_allow_origins: List[str] = ["*"]
 
     @field_validator("cors_allow_origins", mode="before")

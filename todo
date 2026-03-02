@@ -1,31 +1,7 @@
-1. the backend is awful, its not a single route setup.
-2. there are handlers everywhere.
-3. for get route its query, for post put and delete it will be mutation.
-
-there will be one generic route that will take everything. create post is complex, so thats an exception, so keep it as it is.
-in handlers, there will be
-
-CQRS pattern.
-
-from frontend it will be like {
-    type: "query" | "mutation",
-    action: "list_posts",
-    payload: {
-        take: 0,
-        skip: 10
-    }
-}
-
-this will be like this.
-and handlers will be.
-
-{
-    action: posts.list_posts.value, //enums,
-    handler: function to handle this.
-}
-
-this will be like this, best flow.
-
-create proper enums and other things. and there will be a common event bus to exec things async. so that the main thread is never blocked.
-
-i dont want duplicate codes, or useless codes, i need only generic endpoint that will be called by frontend to fetch data, except the create post, routes.
+1. fix the upload logic asap.
+2. uploader cannot be any one. create a separate section, with api key, only from there, this upload flow will happen, and people are allowed to login save the videos, and see them in there profile.
+3. only one uploader always, that too throught api key.
+4. people can come, and like and comment thats all, and view all the posts.
+5. if people doesnt login, they cannot comment or like, thats all.
+6. i want enterprise level flow.
+so basically a person will upload all videos and what not, other can view it effortlessly, logged in users can only like and comment, rest every one can view the posts, and share. and logged in users will have there profile where they can save posts, and watch posts again that they have saved.

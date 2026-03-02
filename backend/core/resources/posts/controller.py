@@ -8,7 +8,8 @@ import tempfile
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 
 from core.logger.logger import get_logger
-from core.plugins.auth.deps import get_current_user
+from fastapi import Header
+from config.config import settings
 from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline import PipelineContext
 from core.resources.posts.pipeline_shared import get_shared_pipeline
@@ -41,8 +42,19 @@ async def upload_and_create_post(
     tags: str = Form(default=""),
     username: str | None = Form(default=None),
     profilePhoto: str | None = Form(default=None),
-    user=Depends(get_current_user),
+    x_api_key: str = Header(default=None, alias="X-API-KEY"),
+    user_id: str = Form(default=None),
 ):
+    """
+    Only the uploader with the correct API key can upload. User ID must be provided in form data.
+    """
+    if not x_api_key or x_api_key != settings.uploader_api_key:
+        logger.info("upload denied: invalid or missing API key")
+        raise HTTPException(status_code=403, detail="Invalid or missing API key")
+    # Only allow one uploader (enforced by API key)
+    if not user_id:
+        logger.info("upload denied: missing user_id")
+        raise HTTPException(status_code=400, detail="user_id is required")
     """
     Save files to tmp, create post with pending status, and enqueue async upload pipeline.
     Returns immediately with pending status.
@@ -50,7 +62,7 @@ async def upload_and_create_post(
     if not files or len(files) == 0:
         raise HTTPException(status_code=400, detail="At least one file is required")
     
-    logger.info("upload_and_create_post user_id=%s file_count=%s", user.user_id, len(files))
+    logger.info("upload_and_create_post user_id=%s file_count=%s", user_id, len(files))
     
     # Validate files
     videos = []
@@ -79,7 +91,7 @@ async def upload_and_create_post(
     
     # Create post with pending status (no media yet)
     post = await _svc.create_post(
-        user_id=user.user_id,
+        user_id=user_id,
         caption=caption,
         description=description,
         tags=tag_list,
@@ -125,7 +137,7 @@ async def upload_and_create_post(
     # Create pipeline context and enqueue
     context = PipelineContext(
         post_id=post.id,
-        user_id=user.user_id,
+        user_id=user_id,
         files=file_infos,
         tmp_dir=str(tmp_dir),
     )
