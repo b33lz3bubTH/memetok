@@ -3,10 +3,10 @@
 Standalone Go analytics engine in a separate root folder.
 
 Supported event types (strategy-based):
-- view (active aggregation)
-- search (ingested, strategy placeholder)
-- like (ingested, strategy placeholder)
-- comment (ingested, strategy placeholder)
+- view (aggregated for top videos + unique users)
+- search (WAL-only storage)
+- like (WAL-only storage)
+- comment (WAL-only storage)
 
 ## Production hardening included
 
@@ -49,6 +49,16 @@ curl -i -X POST "$BASE_URL/events" \
   -H "Content-Type: application/json" \
   -d "{\"timestamp\":\"$NOW\",\"type\":\"view\",\"video_id\":\"video-101\",\"user_id\":\"user-a\"}"
 
-curl -s "$BASE_URL/analytics?days=1" \
+curl -s "$BASE_URL/analytics" \
   -H "X-API-Key: change-me" | jq
 ```
+
+
+## Retention and throughput behavior
+
+- Event ingestion writes to a buffered WAL writer and syncs periodically (not per event) to sustain higher request rates.
+- Processed WAL is rotated to timestamped files under `data/wal/`.
+- The analytics API is fixed to:
+  - unique users over the last 24 hours
+  - top 50 videos over the last 30 days
+- Backlogs older than 30 days are cleaned from segments and rotated WAL files on a periodic retention sweep.
