@@ -96,6 +96,11 @@ func (s *Store) CleanupOldData(now time.Time, retentionDays int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *Store) CleanupOldWAL(now time.Time, retentionDays int) error {
+	cutoff := now.UTC().AddDate(0, 0, -retentionDays)
 	entries, err := os.ReadDir(s.Paths.WALDir)
 	if err != nil {
 		return err

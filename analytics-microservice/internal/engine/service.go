@@ -24,7 +24,10 @@ type VideoCount struct {
 
 type AnalyticsResponse struct {
 	WindowDays        int          `json:"window_days"`
-	UniqueUsers24h    int          `json:"unique_users_24h"`
+	WindowStart       string       `json:"window_start"`
+	WindowEnd         string       `json:"window_end"`
+	TotalViews        int          `json:"total_views"`
+	TotalUniqueUsers  int          `json:"total_unique_users"`
 	Top50Videos       []VideoCount `json:"top_50_videos"`
 	ProcessedEventLog []string     `json:"processed_event_log"`
 }
@@ -85,6 +88,7 @@ func (s *Service) Start(ctx context.Context) error {
 	go s.runSnapshotTicker(ctx)
 	go s.runSnapshotWorker(ctx)
 	go s.runRetentionWorker(ctx)
+	go s.runWALRetentionWorker(ctx)
 	return nil
 }
 
@@ -289,6 +293,21 @@ func (s *Service) runRetentionWorker(ctx context.Context) {
 	}
 }
 
+func (s *Service) runWALRetentionWorker(ctx context.Context) {
+	ticker := time.NewTicker(WALSweepPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.store.CleanupOldWAL(time.Now(), RollingWindowDays); err != nil {
+				s.logger.Printf("wal retention cleanup error: %v", err)
+			}
+		}
+	}
+}
+
 func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
 	payload, err := s.ReadAnalyticsJSON(days)
 	if err != nil {
@@ -331,8 +350,12 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
+	totalViews := 0
+	for _, count := range views {
+		totalViews += count
+	}
 
-	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
+	totalUsers, err := s.store.CountDistinctUsers(now, days)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
@@ -350,9 +373,14 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 	if len(top) > 50 {
 		top = top[:50]
 	}
+	windowEnd := now.UTC().Format("2006-01-02")
+	windowStart := now.UTC().AddDate(0, 0, -(days - 1)).Format("2006-01-02")
 	return AnalyticsResponse{
 		WindowDays:        days,
-		UniqueUsers24h:    totalUsers,
+		WindowStart:       windowStart,
+		WindowEnd:         windowEnd,
+		TotalViews:        totalViews,
+		TotalUniqueUsers:  totalUsers,
 		Top50Videos:       top,
 		ProcessedEventLog: []string{"view", "search", "like", "comment"},
 	}, nil

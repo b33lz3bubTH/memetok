@@ -58,8 +58,10 @@ curl -s "$BASE_URL/analytics" \
 
 - Event ingestion writes to a buffered WAL writer and syncs periodically (not per event) to sustain higher request rates.
 - Processed WAL is rotated to timestamped files under `data/wal/`.
-- The analytics API returns:
-  - unique users over the last 24 hours
-  - top 50 videos over a configurable window via `days` query param (`1-30`, defaults to `30`)
+- The analytics API returns for a caller-selected window (`days=1..30`, where `1` is today only):
+  - `total_views` aggregated over the requested day/range
+  - `total_unique_users` aggregated over the same day/range
+  - top 50 videos over the same day/range
+  - window bounds (`window_start`, `window_end`) for easier dashboard rendering
   - cached analytics payloads (2s TTL) per requested window to avoid repeated segment scans under high read throughput
-- Backlogs older than 30 days are cleaned from segments and rotated WAL files on a periodic retention sweep.
+- Backlogs older than 30 days are cleaned from analytics segments daily, while rotated WAL files are swept monthly (retaining 30 days at all times).
