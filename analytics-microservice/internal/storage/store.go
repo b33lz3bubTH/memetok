@@ -250,9 +250,13 @@ func (s *Store) AppendViewDay(day string, views map[string]int, userHashes map[s
 }
 
 func (s *Store) CountDistinctUsers(now time.Time, days int) (int, error) {
+	return s.CountDistinctUsersRange(now, 1, days)
+}
+
+func (s *Store) CountDistinctUsersRange(now time.Time, fromDay, toDay int) (int, error) {
 	set := make(map[string]struct{}, 1024)
-	for i := 0; i < days; i++ {
-		day := now.UTC().AddDate(0, 0, -i).Format("2006-01-02")
+	for dayOffset := fromDay - 1; dayOffset <= toDay-1; dayOffset++ {
+		day := now.UTC().AddDate(0, 0, -dayOffset).Format("2006-01-02")
 		path := filepath.Join(s.Paths.DAUDir, day+".seg")
 		f, err := os.Open(path)
 		if err != nil {
@@ -319,9 +323,13 @@ func (s *Store) ReadSnapshot() (map[string]int, error) {
 }
 
 func (s *Store) MergeViews(now time.Time, days int) (map[string]int, error) {
+	return s.MergeViewsRange(now, 1, days)
+}
+
+func (s *Store) MergeViewsRange(now time.Time, fromDay, toDay int) (map[string]int, error) {
 	out := make(map[string]int, 256)
-	for i := 0; i < days; i++ {
-		day := now.UTC().AddDate(0, 0, -i).Format("2006-01-02")
+	for dayOffset := fromDay - 1; dayOffset <= toDay-1; dayOffset++ {
+		day := now.UTC().AddDate(0, 0, -dayOffset).Format("2006-01-02")
 		path := filepath.Join(s.Paths.ViewsDir, day+".seg")
 		if err := s.mergeSegment(path, out); err != nil {
 			if errors.Is(err, os.ErrNotExist) {

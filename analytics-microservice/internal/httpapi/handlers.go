@@ -90,17 +90,36 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
-	days := engine.RollingWindowDays
+	query := engine.AnalyticsQuery{FromDay: 1, ToDay: engine.RollingWindowDays}
+
 	if daysRaw := strings.TrimSpace(r.URL.Query().Get("days")); daysRaw != "" {
 		parsedDays, err := strconv.Atoi(daysRaw)
 		if err != nil {
 			http.Error(w, "days must be an integer", http.StatusBadRequest)
 			return
 		}
-		days = parsedDays
+		query.ToDay = parsedDays
 	}
 
-	payload, err := s.svc.ReadAnalyticsJSON(days)
+	if fromRaw := strings.TrimSpace(r.URL.Query().Get("from_day")); fromRaw != "" {
+		parsedFrom, err := strconv.Atoi(fromRaw)
+		if err != nil {
+			http.Error(w, "from_day must be an integer", http.StatusBadRequest)
+			return
+		}
+		query.FromDay = parsedFrom
+	}
+
+	if toRaw := strings.TrimSpace(r.URL.Query().Get("to_day")); toRaw != "" {
+		parsedTo, err := strconv.Atoi(toRaw)
+		if err != nil {
+			http.Error(w, "to_day must be an integer", http.StatusBadRequest)
+			return
+		}
+		query.ToDay = parsedTo
+	}
+
+	payload, err := s.svc.ReadAnalyticsJSON(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

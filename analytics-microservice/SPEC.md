@@ -41,11 +41,13 @@ type BatchState struct {
 }
 
 type AnalyticsResponse struct {
-  Days         int
-  TotalViews   int
-  TotalUsers   int
-  Top50Videos  []VideoCount
-  EventSupport []string
+  WindowDays        int
+  FromDay           int
+  ToDay             int
+  TotalViews        int
+  UniqueUsers       int
+  Top50Videos       []VideoCount
+  ProcessedEventLog []string
 }
 ```
 
@@ -140,10 +142,9 @@ POST /events:
   immediate 200 on success
   no disk access
 
-GET /analytics?days=N:
-  if N==30 and snapshot exists -> read snapshot
-  else merge view segments
-  count distinct users from dau segments
+GET /analytics?days=N or /analytics?from_day=A&to_day=B:
+  merge view segments in selected range (1..30, where 1=today)
+  count distinct users from dau segments in same range
   compute total views + top 50 videos
   return response
 ```

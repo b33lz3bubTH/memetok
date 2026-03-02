@@ -24,9 +24,17 @@ type VideoCount struct {
 
 type AnalyticsResponse struct {
 	WindowDays        int          `json:"window_days"`
-	UniqueUsers24h    int          `json:"unique_users_24h"`
+	FromDay           int          `json:"from_day"`
+	ToDay             int          `json:"to_day"`
+	TotalViews        int          `json:"total_views"`
+	UniqueUsers       int          `json:"unique_users"`
 	Top50Videos       []VideoCount `json:"top_50_videos"`
 	ProcessedEventLog []string     `json:"processed_event_log"`
+}
+
+type AnalyticsQuery struct {
+	FromDay int
+	ToDay   int
 }
 
 type Service struct {
@@ -39,7 +47,7 @@ type Service struct {
 	strategies  map[string]EventStrategy
 
 	analyticsMu sync.Mutex
-	analytics   map[int]cachedAnalytics
+	analytics   map[string]cachedAnalytics
 }
 
 type cachedAnalytics struct {
@@ -67,7 +75,7 @@ func NewService(store *storage.Store, logger *log.Logger) *Service {
 		snapshotReq: make(chan struct{}, 1),
 		logger:      logger,
 		strategies:  strategies,
-		analytics:   make(map[int]cachedAnalytics),
+		analytics:   make(map[string]cachedAnalytics),
 	}
 }
 
@@ -290,7 +298,7 @@ func (s *Service) runRetentionWorker(ctx context.Context) {
 }
 
 func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
-	payload, err := s.ReadAnalyticsJSON(days)
+	payload, err := s.ReadAnalyticsJSON(AnalyticsQuery{FromDay: 1, ToDay: days})
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
@@ -301,20 +309,27 @@ func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
 	return out, nil
 }
 
-func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
-	if days < 1 || days > RollingWindowDays {
-		return nil, fmt.Errorf("days must be between 1 and %d", RollingWindowDays)
+func (s *Service) ReadAnalyticsJSON(query AnalyticsQuery) ([]byte, error) {
+	if query.FromDay < 1 || query.FromDay > RollingWindowDays {
+		return nil, fmt.Errorf("from_day must be between 1 and %d", RollingWindowDays)
+	}
+	if query.ToDay < 1 || query.ToDay > RollingWindowDays {
+		return nil, fmt.Errorf("to_day must be between 1 and %d", RollingWindowDays)
+	}
+	if query.FromDay > query.ToDay {
+		return nil, fmt.Errorf("from_day must be less than or equal to to_day")
 	}
 
 	now := time.Now()
 	s.analyticsMu.Lock()
 	defer s.analyticsMu.Unlock()
 
-	if cached, ok := s.analytics[days]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
+	cacheKey := fmt.Sprintf("%d:%d", query.FromDay, query.ToDay)
+	if cached, ok := s.analytics[cacheKey]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
 		return append([]byte(nil), cached.json...), nil
 	}
 
-	resp, err := s.buildAnalytics(now, days)
+	resp, err := s.buildAnalytics(now, query)
 	if err != nil {
 		return nil, err
 	}
@@ -322,19 +337,24 @@ func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.analytics[days] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
+	s.analytics[cacheKey] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
 	return append([]byte(nil), payload...), nil
 }
 
-func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, error) {
-	views, err := s.store.MergeViews(now, days)
+func (s *Service) buildAnalytics(now time.Time, query AnalyticsQuery) (AnalyticsResponse, error) {
+	views, err := s.store.MergeViewsRange(now, query.FromDay, query.ToDay)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
 
-	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
+	totalUsers, err := s.store.CountDistinctUsersRange(now, query.FromDay, query.ToDay)
 	if err != nil {
 		return AnalyticsResponse{}, err
+	}
+
+	totalViews := 0
+	for _, count := range views {
+		totalViews += count
 	}
 
 	top := make([]VideoCount, 0, len(views))
@@ -350,9 +370,13 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 	if len(top) > 50 {
 		top = top[:50]
 	}
+	windowDays := query.ToDay - query.FromDay + 1
 	return AnalyticsResponse{
-		WindowDays:        days,
-		UniqueUsers24h:    totalUsers,
+		WindowDays:        windowDays,
+		FromDay:           query.FromDay,
+		ToDay:             query.ToDay,
+		TotalViews:        totalViews,
+		UniqueUsers:       totalUsers,
 		Top50Videos:       top,
 		ProcessedEventLog: []string{"view", "search", "like", "comment"},
 	}, nil
@@ -360,6 +384,6 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 
 func (s *Service) invalidateAnalyticsCache() {
 	s.analyticsMu.Lock()
-	s.analytics = make(map[int]cachedAnalytics)
+	s.analytics = make(map[string]cachedAnalytics)
 	s.analyticsMu.Unlock()
 }
