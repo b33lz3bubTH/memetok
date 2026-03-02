@@ -91,6 +91,7 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	days := engine.RollingWindowDays
+	uniqueDay := 0
 	if daysRaw := strings.TrimSpace(r.URL.Query().Get("days")); daysRaw != "" {
 		parsedDays, err := strconv.Atoi(daysRaw)
 		if err != nil {
@@ -99,8 +100,16 @@ func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 		}
 		days = parsedDays
 	}
+	if dayRaw := strings.TrimSpace(r.URL.Query().Get("unique_day")); dayRaw != "" {
+		parsedDay, err := strconv.Atoi(dayRaw)
+		if err != nil {
+			http.Error(w, "unique_day must be an integer", http.StatusBadRequest)
+			return
+		}
+		uniqueDay = parsedDay
+	}
 
-	payload, err := s.svc.ReadAnalyticsJSON(days)
+	payload, err := s.svc.ReadAnalyticsJSON(days, uniqueDay)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

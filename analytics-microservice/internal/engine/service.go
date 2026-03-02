@@ -23,10 +23,13 @@ type VideoCount struct {
 }
 
 type AnalyticsResponse struct {
-	WindowDays        int          `json:"window_days"`
-	UniqueUsers24h    int          `json:"unique_users_24h"`
-	Top50Videos       []VideoCount `json:"top_50_videos"`
-	ProcessedEventLog []string     `json:"processed_event_log"`
+	WindowDays             int          `json:"window_days"`
+	TotalViews             int          `json:"total_views"`
+	UniqueUsersInWindow    int          `json:"unique_users_in_window"`
+	UniqueUsersSelectedDay int          `json:"unique_users_selected_day"`
+	SelectedDay            int          `json:"selected_day"`
+	Top50Videos            []VideoCount `json:"top_50_videos"`
+	ProcessedEventLog      []string     `json:"processed_event_log"`
 }
 
 type Service struct {
@@ -39,7 +42,7 @@ type Service struct {
 	strategies  map[string]EventStrategy
 
 	analyticsMu sync.Mutex
-	analytics   map[int]cachedAnalytics
+	analytics   map[string]cachedAnalytics
 }
 
 type cachedAnalytics struct {
@@ -67,7 +70,7 @@ func NewService(store *storage.Store, logger *log.Logger) *Service {
 		snapshotReq: make(chan struct{}, 1),
 		logger:      logger,
 		strategies:  strategies,
-		analytics:   make(map[int]cachedAnalytics),
+		analytics:   make(map[string]cachedAnalytics),
 	}
 }
 
@@ -289,8 +292,8 @@ func (s *Service) runRetentionWorker(ctx context.Context) {
 	}
 }
 
-func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
-	payload, err := s.ReadAnalyticsJSON(days)
+func (s *Service) ReadAnalytics(days int, uniqueDay int) (AnalyticsResponse, error) {
+	payload, err := s.ReadAnalyticsJSON(days, uniqueDay)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
@@ -301,20 +304,27 @@ func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
 	return out, nil
 }
 
-func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
+func (s *Service) ReadAnalyticsJSON(days int, uniqueDay int) ([]byte, error) {
 	if days < 1 || days > RollingWindowDays {
 		return nil, fmt.Errorf("days must be between 1 and %d", RollingWindowDays)
 	}
+	if uniqueDay == 0 {
+		uniqueDay = days
+	}
+	if uniqueDay < 1 || uniqueDay > RollingWindowDays {
+		return nil, fmt.Errorf("unique_day must be between 1 and %d", RollingWindowDays)
+	}
+	cacheKey := fmt.Sprintf("%d:%d", days, uniqueDay)
 
 	now := time.Now()
 	s.analyticsMu.Lock()
 	defer s.analyticsMu.Unlock()
 
-	if cached, ok := s.analytics[days]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
+	if cached, ok := s.analytics[cacheKey]; ok && len(cached.json) > 0 && now.Before(cached.expiresAt) {
 		return append([]byte(nil), cached.json...), nil
 	}
 
-	resp, err := s.buildAnalytics(now, days)
+	resp, err := s.buildAnalytics(now, days, uniqueDay)
 	if err != nil {
 		return nil, err
 	}
@@ -322,23 +332,29 @@ func (s *Service) ReadAnalyticsJSON(days int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.analytics[days] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
+	s.analytics[cacheKey] = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
 	return append([]byte(nil), payload...), nil
 }
 
-func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, error) {
+func (s *Service) buildAnalytics(now time.Time, days int, uniqueDay int) (AnalyticsResponse, error) {
 	views, err := s.store.MergeViews(now, days)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
 
-	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
+	totalUsers, err := s.store.CountDistinctUsers(now, days)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
+	selectedDayUsers, err := s.store.CountDistinctUsersForRelativeDay(now, uniqueDay)
+	if err != nil {
+		return AnalyticsResponse{}, err
+	}
+	totalViews := 0
 
 	top := make([]VideoCount, 0, len(views))
 	for videoID, count := range views {
+		totalViews += count
 		top = append(top, VideoCount{VideoID: videoID, Views: count})
 	}
 	sort.Slice(top, func(i, j int) bool {
@@ -351,15 +367,18 @@ func (s *Service) buildAnalytics(now time.Time, days int) (AnalyticsResponse, er
 		top = top[:50]
 	}
 	return AnalyticsResponse{
-		WindowDays:        days,
-		UniqueUsers24h:    totalUsers,
-		Top50Videos:       top,
-		ProcessedEventLog: []string{"view", "search", "like", "comment"},
+		WindowDays:             days,
+		TotalViews:             totalViews,
+		UniqueUsersInWindow:    totalUsers,
+		UniqueUsersSelectedDay: selectedDayUsers,
+		SelectedDay:            uniqueDay,
+		Top50Videos:            top,
+		ProcessedEventLog:      []string{"view", "search", "like", "comment"},
 	}, nil
 }
 
 func (s *Service) invalidateAnalyticsCache() {
 	s.analyticsMu.Lock()
-	s.analytics = make(map[int]cachedAnalytics)
+	s.analytics = make(map[string]cachedAnalytics)
 	s.analyticsMu.Unlock()
 }

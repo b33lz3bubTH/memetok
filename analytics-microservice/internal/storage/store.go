@@ -262,6 +262,7 @@ func (s *Store) CountDistinctUsers(now time.Time, days int) (int, error) {
 			return 0, err
 		}
 		scan := bufio.NewScanner(f)
+		scan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scan.Scan() {
 			v := strings.TrimSpace(scan.Text())
 			if v != "" {
@@ -273,6 +274,32 @@ func (s *Store) CountDistinctUsers(now time.Time, days int) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+	}
+	return len(set), nil
+}
+
+func (s *Store) CountDistinctUsersForRelativeDay(now time.Time, day int) (int, error) {
+	target := now.UTC().AddDate(0, 0, -(day - 1)).Format("2006-01-02")
+	path := filepath.Join(s.Paths.DAUDir, target+".seg")
+	f, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	defer f.Close()
+	set := make(map[string]struct{}, 1024)
+	scan := bufio.NewScanner(f)
+	scan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scan.Scan() {
+		v := strings.TrimSpace(scan.Text())
+		if v != "" {
+			set[v] = struct{}{}
+		}
+	}
+	if err := scan.Err(); err != nil {
+		return 0, err
 	}
 	return len(set), nil
 }
@@ -340,6 +367,7 @@ func (s *Store) mergeSegment(path string, out map[string]int) error {
 	}
 	defer f.Close()
 	scan := bufio.NewScanner(f)
+	scan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scan.Scan() {
 		parts := strings.SplitN(scan.Text(), ",", 2)
 		if len(parts) != 2 {
