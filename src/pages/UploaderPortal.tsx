@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { SignInButton, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { ArrowLeft, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CreatePostButton from '@/components/CreatePostButton';
@@ -38,16 +37,7 @@ export default function UploaderPortal() {
           {!canProceed ? (
             <div className="text-xs text-white/60">Provide an API key to unlock uploader actions.</div>
           ) : (
-            <>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20">Sign in to continue</button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <CreatePostButton uploaderApiKey={apiKey.trim()} />
-              </SignedIn>
-            </>
+            <CreatePostButton uploaderApiKey={apiKey.trim()} />
           )}
         </div>
       </div>
