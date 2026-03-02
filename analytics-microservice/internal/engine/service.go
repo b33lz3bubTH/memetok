@@ -3,10 +3,12 @@ package engine
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"os"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -34,6 +36,14 @@ type Service struct {
 	snapRunning atomic.Bool
 	logger      *log.Logger
 	strategies  map[string]EventStrategy
+
+	analyticsMu sync.Mutex
+	analytics   cachedAnalytics
+}
+
+type cachedAnalytics struct {
+	json      []byte
+	expiresAt time.Time
 }
 
 func NewService(store *storage.Store, logger *log.Logger) *Service {
@@ -209,6 +219,7 @@ func (s *Service) processBatch(events []model.Event) {
 		s.logger.Printf("offset write error: %v", err)
 		return
 	}
+	s.invalidateAnalyticsCache()
 }
 
 func (s *Service) recoverOnce() error {
@@ -253,6 +264,7 @@ func (s *Service) runSnapshotWorker(ctx context.Context) {
 		case <-s.snapshotReq:
 			if s.snapRunning.CompareAndSwap(false, true) {
 				_ = s.store.BuildRollingSnapshot(time.Now(), RollingWindowDays)
+				s.invalidateAnalyticsCache()
 				s.snapRunning.Store(false)
 			}
 		}
@@ -270,19 +282,58 @@ func (s *Service) runRetentionWorker(ctx context.Context) {
 			if err := s.store.CleanupOldData(time.Now(), RollingWindowDays); err != nil {
 				s.logger.Printf("retention cleanup error: %v", err)
 			}
+			s.invalidateAnalyticsCache()
 		}
 	}
 }
 
 func (s *Service) ReadAnalytics(_ int) (AnalyticsResponse, error) {
-	views, err := s.store.MergeViews(time.Now(), RollingWindowDays)
+	payload, err := s.ReadAnalyticsJSON()
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
-	totalUsers, err := s.store.CountDistinctUsers(time.Now(), UniqueUsersWindowDay)
+	var out AnalyticsResponse
+	if err := json.Unmarshal(payload, &out); err != nil {
+		return AnalyticsResponse{}, err
+	}
+	return out, nil
+}
+
+func (s *Service) ReadAnalyticsJSON() ([]byte, error) {
+	now := time.Now()
+	s.analyticsMu.Lock()
+	defer s.analyticsMu.Unlock()
+
+	if len(s.analytics.json) > 0 && now.Before(s.analytics.expiresAt) {
+		return append([]byte(nil), s.analytics.json...), nil
+	}
+
+	resp, err := s.buildAnalytics(now)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(resp)
+	if err != nil {
+		return nil, err
+	}
+	s.analytics = cachedAnalytics{json: payload, expiresAt: now.Add(AnalyticsCacheTTL)}
+	return append([]byte(nil), payload...), nil
+}
+
+func (s *Service) buildAnalytics(now time.Time) (AnalyticsResponse, error) {
+	views, err := s.store.ReadSnapshot()
+	if err != nil {
+		views, err = s.store.MergeViews(now, RollingWindowDays)
+		if err != nil {
+			return AnalyticsResponse{}, err
+		}
+	}
+
+	totalUsers, err := s.store.CountDistinctUsers(now, UniqueUsersWindowDay)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
+
 	top := make([]VideoCount, 0, len(views))
 	for videoID, count := range views {
 		top = append(top, VideoCount{VideoID: videoID, Views: count})
@@ -302,4 +353,10 @@ func (s *Service) ReadAnalytics(_ int) (AnalyticsResponse, error) {
 		Top50Videos:       top,
 		ProcessedEventLog: []string{"view", "search", "like", "comment"},
 	}, nil
+}
+
+func (s *Service) invalidateAnalyticsCache() {
+	s.analyticsMu.Lock()
+	s.analytics = cachedAnalytics{}
+	s.analyticsMu.Unlock()
 }
