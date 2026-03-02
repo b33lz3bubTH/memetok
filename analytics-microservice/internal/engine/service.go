@@ -1,8 +1,8 @@
 package engine
 
 import (
+	"bufio"
 	"context"
-	"errors"
 	"io"
 	"log"
 	"os"
@@ -20,11 +20,10 @@ type VideoCount struct {
 }
 
 type AnalyticsResponse struct {
-	Days         int          `json:"days"`
-	TotalViews   int          `json:"total_views"`
-	TotalUsers   int          `json:"total_users"`
-	Top50Videos  []VideoCount `json:"top_50_videos"`
-	EventSupport []string     `json:"event_support"`
+	WindowDays        int          `json:"window_days"`
+	UniqueUsers24h    int          `json:"unique_users_24h"`
+	Top50Videos       []VideoCount `json:"top_50_videos"`
+	ProcessedEventLog []string     `json:"processed_event_log"`
 }
 
 type Service struct {
@@ -73,27 +72,63 @@ func (s *Service) Start(ctx context.Context) error {
 	go s.runProcessor(ctx)
 	go s.runSnapshotTicker(ctx)
 	go s.runSnapshotWorker(ctx)
+	go s.runRetentionWorker(ctx)
 	return nil
 }
 
 func (s *Service) runWALWriter(ctx context.Context) {
-	f, err := os.OpenFile(s.store.Paths.WALPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	openWriter := func() (*os.File, *bufio.Writer, error) {
+		f, err := os.OpenFile(s.store.Paths.WALPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		if err != nil {
+			return nil, nil, err
+		}
+		return f, bufio.NewWriterSize(f, 1<<20), nil
+	}
+
+	f, writer, err := openWriter()
 	if err != nil {
 		s.logger.Printf("wal open error: %v", err)
 		return
 	}
 	defer f.Close()
+	currentDay := time.Now().UTC().Format("2006-01-02")
+
+	flushTicker := time.NewTicker(WALFlushInterval)
+	syncTicker := time.NewTicker(WALSyncInterval)
+	defer flushTicker.Stop()
+	defer syncTicker.Stop()
+
+	rotate := func(now time.Time) {
+		targetDay := now.UTC().Format("2006-01-02")
+		if targetDay == currentDay {
+			return
+		}
+		_ = writer.Flush()
+		_ = f.Sync()
+		_ = f.Close()
+		rotated := s.store.Paths.WALDir + "/events-" + now.UTC().Format("20060102T150405Z") + ".wal"
+		if err := os.Rename(s.store.Paths.WALPath, rotated); err != nil {
+			s.logger.Printf("wal rotate rename error: %v", err)
+		}
+		nf, nw, err := openWriter()
+		if err != nil {
+			s.logger.Printf("wal reopen error: %v", err)
+			return
+		}
+		f = nf
+		writer = nw
+		currentDay = targetDay
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			_ = writer.Flush()
+			_ = f.Sync()
 			return
 		case ev := <-s.ingestCh:
-			if err := s.store.AppendWALEvent(f, ev); err != nil {
+			if err := s.store.AppendWALEvent(writer, ev); err != nil {
 				s.logger.Printf("wal append error: %v", err)
-				continue
-			}
-			if err := f.Sync(); err != nil {
-				s.logger.Printf("wal sync error: %v", err)
 				continue
 			}
 			select {
@@ -101,6 +136,19 @@ func (s *Service) runWALWriter(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			}
+		case <-flushTicker.C:
+			if err := writer.Flush(); err != nil {
+				s.logger.Printf("wal flush error: %v", err)
+			}
+		case <-syncTicker.C:
+			if err := writer.Flush(); err != nil {
+				s.logger.Printf("wal flush error: %v", err)
+				continue
+			}
+			if err := f.Sync(); err != nil {
+				s.logger.Printf("wal sync error: %v", err)
+			}
+			rotate(time.Now())
 		}
 	}
 }
@@ -132,25 +180,19 @@ func (s *Service) processBatch(events []model.Event) {
 	if len(events) == 0 {
 		return
 	}
-	s.logger.Printf("processing batch of %d events", len(events))
 	state := NewBatchState()
-	processedCount := 0
 	for _, ev := range events {
 		strategy, ok := s.strategies[ev.Type]
 		if !ok {
-			s.logger.Printf("unknown event type: %s", ev.Type)
 			continue
 		}
 		strategy.Accumulate(ev, state)
-		processedCount++
 	}
-	s.logger.Printf("processed %d events, days with data: %d", processedCount, len(state.ViewsByDay))
 	for _, day := range state.SortedDays() {
 		if err := s.strategies["view"].Flush(day, state, s.store); err != nil {
 			s.logger.Printf("append aggregate error: %v", err)
 			return
 		}
-		s.logger.Printf("flushed day %s with %d videos", day, len(state.ViewsByDay[day]))
 	}
 	f, err := os.OpenFile(s.store.Paths.WALPath, os.O_RDONLY, 0o644)
 	if err != nil {
@@ -165,6 +207,7 @@ func (s *Service) processBatch(events []model.Event) {
 	}
 	if err := s.store.WriteOffset(off); err != nil {
 		s.logger.Printf("offset write error: %v", err)
+		return
 	}
 }
 
@@ -216,36 +259,32 @@ func (s *Service) runSnapshotWorker(ctx context.Context) {
 	}
 }
 
-func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
-	if days <= 0 {
-		return AnalyticsResponse{}, errors.New("days must be positive")
-	}
-	views := map[string]int{}
-	if days == RollingWindowDays {
-		if snap, err := s.store.ReadSnapshot(); err == nil {
-			views = snap
-		} else {
-			merged, mergeErr := s.store.MergeViews(time.Now(), days)
-			if mergeErr != nil {
-				return AnalyticsResponse{}, mergeErr
+func (s *Service) runRetentionWorker(ctx context.Context) {
+	ticker := time.NewTicker(RetentionSweepPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.store.CleanupOldData(time.Now(), RollingWindowDays); err != nil {
+				s.logger.Printf("retention cleanup error: %v", err)
 			}
-			views = merged
 		}
-	} else {
-		merged, err := s.store.MergeViews(time.Now(), days)
-		if err != nil {
-			return AnalyticsResponse{}, err
-		}
-		views = merged
 	}
-	totalUsers, err := s.store.CountDistinctUsers(time.Now(), days)
+}
+
+func (s *Service) ReadAnalytics(_ int) (AnalyticsResponse, error) {
+	views, err := s.store.MergeViews(time.Now(), RollingWindowDays)
 	if err != nil {
 		return AnalyticsResponse{}, err
 	}
-	totalViews := 0
+	totalUsers, err := s.store.CountDistinctUsers(time.Now(), UniqueUsersWindowDay)
+	if err != nil {
+		return AnalyticsResponse{}, err
+	}
 	top := make([]VideoCount, 0, len(views))
 	for videoID, count := range views {
-		totalViews += count
 		top = append(top, VideoCount{VideoID: videoID, Views: count})
 	}
 	sort.Slice(top, func(i, j int) bool {
@@ -258,10 +297,9 @@ func (s *Service) ReadAnalytics(days int) (AnalyticsResponse, error) {
 		top = top[:50]
 	}
 	return AnalyticsResponse{
-		Days:         days,
-		TotalViews:   totalViews,
-		TotalUsers:   totalUsers,
-		Top50Videos:  top,
-		EventSupport: []string{"view", "search", "like", "comment"},
+		WindowDays:        RollingWindowDays,
+		UniqueUsers24h:    totalUsers,
+		Top50Videos:       top,
+		ProcessedEventLog: []string{"view", "search", "like", "comment"},
 	}, nil
 }

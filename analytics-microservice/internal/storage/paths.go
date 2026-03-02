@@ -7,6 +7,7 @@ import (
 type Paths struct {
 	Root          string
 	WALPath       string
+	WALDir        string
 	WALOffsetPath string
 	ViewsDir      string
 	DAUDir        string
@@ -17,6 +18,7 @@ func NewPaths(root string) Paths {
 	return Paths{
 		Root:          root,
 		WALPath:       filepath.Join(root, "wal", "events.wal"),
+		WALDir:        filepath.Join(root, "wal"),
 		WALOffsetPath: filepath.Join(root, "meta", "wal.offset"),
 		ViewsDir:      filepath.Join(root, "segments", "views"),
 		DAUDir:        filepath.Join(root, "segments", "dau"),

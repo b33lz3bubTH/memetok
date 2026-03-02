@@ -28,7 +28,7 @@ func NewStore(dataRoot string) *Store {
 
 func (s *Store) EnsureLayout() error {
 	dirs := []string{
-		filepath.Dir(s.Paths.WALPath),
+		s.Paths.WALDir,
 		filepath.Dir(s.Paths.WALOffsetPath),
 		s.Paths.ViewsDir,
 		s.Paths.DAUDir,
@@ -41,6 +41,78 @@ func (s *Store) EnsureLayout() error {
 	}
 	if _, err := os.Stat(s.Paths.WALOffsetPath); errors.Is(err, os.ErrNotExist) {
 		if err := s.writeOffset(0); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) RotateWAL(now time.Time) error {
+	info, err := os.Stat(s.Paths.WALPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if info.Size() == 0 {
+		return nil
+	}
+	rotated := filepath.Join(s.Paths.WALDir, fmt.Sprintf("events-%s.wal", now.UTC().Format("20060102T150405Z")))
+	if err := os.Rename(s.Paths.WALPath, rotated); err != nil {
+		return err
+	}
+	if err := s.writeOffset(0); err != nil {
+		return err
+	}
+	if err := fsyncDir(s.Paths.WALDir); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) CleanupOldData(now time.Time, retentionDays int) error {
+	cutoff := now.UTC().AddDate(0, 0, -retentionDays)
+	for _, dir := range []string{s.Paths.ViewsDir, s.Paths.DAUDir} {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			if !strings.HasSuffix(name, ".seg") {
+				continue
+			}
+			day := strings.TrimSuffix(name, ".seg")
+			ts, err := time.Parse("2006-01-02", day)
+			if err != nil || !ts.Before(cutoff) {
+				continue
+			}
+			if err := os.Remove(filepath.Join(dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
+	}
+	entries, err := os.ReadDir(s.Paths.WALDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "events-") || !strings.HasSuffix(name, ".wal") {
+			continue
+		}
+		ts, err := time.Parse("20060102T150405Z", strings.TrimSuffix(strings.TrimPrefix(name, "events-"), ".wal"))
+		if err != nil || !ts.Before(cutoff) {
+			continue
+		}
+		if err := os.Remove(filepath.Join(s.Paths.WALDir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}

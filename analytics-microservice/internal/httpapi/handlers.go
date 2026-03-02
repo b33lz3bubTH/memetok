@@ -3,7 +3,6 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -95,16 +94,7 @@ func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	days := 30
-	if q := r.URL.Query().Get("days"); q != "" {
-		parsed, err := strconv.Atoi(q)
-		if err != nil {
-			http.Error(w, "invalid days", http.StatusBadRequest)
-			return
-		}
-		days = parsed
-	}
-	out, err := s.svc.ReadAnalytics(days)
+	out, err := s.svc.ReadAnalytics(0)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
