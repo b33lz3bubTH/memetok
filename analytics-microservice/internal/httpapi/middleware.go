@@ -43,16 +43,27 @@ func authMiddleware(apiKey string, next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
+		if isPublicPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.Header.Get("X-API-Key") != apiKey {
+		if requestAPIKey(r) != apiKey {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isPublicPath(path string) bool {
+	return path == "/healthz" || path == "/readyz" || path == "/events"
+}
+
+func requestAPIKey(r *http.Request) string {
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+		return key
+	}
+	return strings.TrimSpace(r.URL.Query().Get("api_key"))
 }
 
 func methodGuardMiddleware(next http.Handler) http.Handler {
