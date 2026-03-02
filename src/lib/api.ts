@@ -38,7 +38,7 @@ export const media = {
   async uploadWithProgress(
     files: File[],
     opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
-    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; userId: string },
+    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string },
     optsAuth?: { token?: string; uploaderApiKey?: string }
   ): Promise<Post> {
     const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
@@ -92,7 +92,6 @@ export const media = {
         fd.append('tags', metadata.tags.join(','));
         if (metadata.username) fd.append('username', metadata.username);
         if (metadata.profilePhoto) fd.append('profilePhoto', metadata.profilePhoto);
-        fd.append('user_id', metadata.userId);
       }
       xhr.send(fd);
     });

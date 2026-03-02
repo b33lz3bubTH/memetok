@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Video } from 'lucide-react';
 import { postsApi, Post, media } from '@/lib/api';
+import { env } from '@/lib/env';
 
 type TabKey = 'posts' | 'saved';
 
@@ -10,10 +11,22 @@ const UserProfile = () => {
   const { user } = useUser();
   const { getToken } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabKey>('posts');
+
+  const isUploader = useMemo(
+    () => Boolean(user?.id && env.uploaderUserId && user.id === env.uploaderUserId),
+    [user?.id]
+  );
+
+  const [tab, setTab] = useState<TabKey>('saved');
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isUploader && tab !== 'saved') {
+      setTab('saved');
+    }
+  }, [isUploader, tab]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -24,12 +37,20 @@ const UserProfile = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const own = await postsApi.listByUser(user.id, 50, 0);
-        setPosts(own.items);
+
+        if (isUploader) {
+          const own = await postsApi.listByUser(user.id, 50, 0);
+          setPosts(own.items);
+        } else {
+          setPosts([]);
+        }
+
         const token = await getToken();
         if (token) {
           const saved = await postsApi.listSaved(token, 50, 0);
           setSavedPosts(saved.items);
+        } else {
+          setSavedPosts([]);
         }
       } catch (err) {
         console.error('Failed to fetch profile data:', err);
@@ -39,10 +60,10 @@ const UserProfile = () => {
     };
 
     fetchData();
-  }, [user?.id, navigate, getToken]);
+  }, [user?.id, navigate, getToken, isUploader]);
 
   if (!user) return null;
-  const activeItems = tab === 'posts' ? posts : savedPosts;
+  const activeItems = tab === 'posts' && isUploader ? posts : savedPosts;
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,13 +79,19 @@ const UserProfile = () => {
             <div>
               <h1 className="text-2xl font-bold text-white mb-1">{user.fullName || user.username || 'User'}</h1>
               <p className="text-white/70 text-sm">{user.primaryEmailAddress?.emailAddress}</p>
-              <p className="text-white/60 text-sm mt-2">{posts.length} posts · {savedPosts.length} saved</p>
+              {isUploader ? (
+                <p className="text-white/60 text-sm mt-2">{posts.length} posts · {savedPosts.length} saved</p>
+              ) : (
+                <p className="text-white/60 text-sm mt-2">{savedPosts.length} saved</p>
+              )}
             </div>
           </div>
         </div>
 
         <div className="mb-4 flex gap-2">
-          <button onClick={() => setTab('posts')} className={`px-4 py-2 rounded-full text-sm ${tab === 'posts' ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>My posts</button>
+          {isUploader && (
+            <button onClick={() => setTab('posts')} className={`px-4 py-2 rounded-full text-sm ${tab === 'posts' ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>My posts</button>
+          )}
           <button onClick={() => setTab('saved')} className={`px-4 py-2 rounded-full text-sm ${tab === 'saved' ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>Saved posts</button>
         </div>
 

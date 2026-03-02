@@ -53,7 +53,8 @@ async def execute(
         payload = req.payload.copy()
         if user:
             payload["userId"] = user.user_id
-        
+            payload["authUserId"] = user.user_id
+
         result = await handler(payload)
         return result
     except UnknownActionError as e:

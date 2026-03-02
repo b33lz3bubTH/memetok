@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
 import { Loader2, Upload, X } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchFeed } from '@/store/slices/feedSlice';
-import { media, postsApi, type MediaType } from '@/lib/api';
+import { media, type MediaType } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -50,8 +49,6 @@ export default function CreatePostModal({
   uploaderApiKey: string;
 }) {
   const dispatch = useAppDispatch();
-  const { getToken } = useAuth();
-  const { user } = useUser();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -164,11 +161,6 @@ export default function CreatePostModal({
 
   const startUpload = async () => {
     if (files.length === 0 || !mediaType) return;
-    const token = await getToken();
-    if (!token) {
-      toast({ title: 'Sign in required', description: 'You need to login to post.' });
-      return;
-    }
 
     setIsUploading(true);
     setError(null);
@@ -191,11 +183,8 @@ export default function CreatePostModal({
           caption: title.trim(),
           description: description.trim(),
           tags,
-          username: user?.fullName || user?.username || undefined,
-          profilePhoto: user?.imageUrl || undefined,
-          userId: user?.id || '',
         },
-        { token: token || undefined, uploaderApiKey }
+        { uploaderApiKey }
       );
 
       await dispatch(fetchFeed(1));
@@ -491,4 +480,3 @@ export default function CreatePostModal({
     </Dialog>
   );
 }
-
