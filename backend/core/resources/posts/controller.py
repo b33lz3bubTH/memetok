@@ -9,11 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 
 from core.logger.logger import get_logger
 from fastapi import Header
+from core.plugins.auth.clerk_jwt import verify_clerk_bearer_token, AuthError
 from config.config import settings
 from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline import PipelineContext
 from core.resources.posts.pipeline_shared import get_shared_pipeline
-from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
+from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
 from core.resources.posts.service import PostsService
 
 
@@ -27,6 +28,7 @@ def _get_posts_service() -> PostsService:
         posts_repo=PostsRepository(),
         likes_repo=LikesRepository(),
         comments_repo=CommentsRepository(),
+        saved_posts_repo=SavedPostsRepository(),
         jobs_service=jobs_service,
     )
 
@@ -44,6 +46,7 @@ async def upload_and_create_post(
     profilePhoto: str | None = Form(default=None),
     x_api_key: str = Header(default=None, alias="X-API-KEY"),
     user_id: str = Form(default=None),
+    authorization: str = Header(default=None),
 ):
     """
     Only the uploader with the correct API key can upload. User ID must be provided in form data.
@@ -51,10 +54,20 @@ async def upload_and_create_post(
     if not x_api_key or x_api_key != settings.uploader_api_key:
         logger.info("upload denied: invalid or missing API key")
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    try:
+        token = authorization.split(" ", 1)[1].strip()
+        token_user_id = await verify_clerk_bearer_token(token)
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail="Invalid bearer token") from exc
+
     # Only allow one uploader (enforced by API key)
     if not user_id:
         logger.info("upload denied: missing user_id")
         raise HTTPException(status_code=400, detail="user_id is required")
+    if token_user_id != "dev-user" and token_user_id != user_id:
+        raise HTTPException(status_code=403, detail="user_id does not match authenticated user")
     """
     Save files to tmp, create post with pending status, and enqueue async upload pipeline.
     Returns immediately with pending status.

@@ -58,6 +58,25 @@ def register_posts_handlers(svc: PostsService) -> None:
             logger.exception("list_user_posts db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
+
+
+    async def handle_list_saved_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            user_id = str(payload.get("userId", ""))
+            if not user_id:
+                raise HTTPException(status_code=401, detail="authentication required")
+            take = int(payload.get("take", 50))
+            skip = int(payload.get("skip", 0))
+            take = max(1, min(take, 100))
+            skip = max(0, skip)
+            logger.info("list_saved_posts user_id=%s take=%s skip=%s", user_id, take, skip)
+            items = await svc.list_saved_posts(user_id=user_id, take=take, skip=skip)
+            total = await svc.count_saved_posts(user_id=user_id)
+            return {"items": [i.model_dump() for i in items], "take": take, "skip": skip, "total": total}
+        except PyMongoError as e:
+            logger.exception("list_saved_posts db error")
+            raise HTTPException(status_code=503, detail="db unavailable") from e
+
     async def handle_get_post_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             post_id = str(payload.get("postId", ""))
@@ -101,6 +120,23 @@ def register_posts_handlers(svc: PostsService) -> None:
             logger.info("toggle_like not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
+
+
+    async def handle_toggle_save_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            post_id = str(payload.get("postId", ""))
+            user_id = str(payload.get("userId", ""))
+            if not post_id:
+                raise HTTPException(status_code=400, detail="postId is required")
+            if not user_id:
+                raise HTTPException(status_code=401, detail="authentication required")
+            logger.info("toggle_save_post post_id=%s user_id=%s", post_id, user_id)
+            saved = await svc.toggle_save_post(post_id=post_id, user_id=user_id)
+            return {"postId": post_id, "saved": saved}
+        except PostNotFoundError as e:
+            logger.info("toggle_save_post not found post_id=%s", payload.get("postId"))
+            raise HTTPException(status_code=404, detail="post not found") from e
+
     async def handle_add_comment(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             post_id = str(payload.get("postId", ""))
@@ -124,6 +160,8 @@ def register_posts_handlers(svc: PostsService) -> None:
     query_registry.register(PostsQueryAction.LIST_USER_POSTS, handle_list_user_posts)
     query_registry.register(PostsQueryAction.GET_POST_STATS, handle_get_post_stats)
     query_registry.register(PostsQueryAction.LIST_COMMENTS, handle_list_comments)
+    query_registry.register(PostsQueryAction.LIST_SAVED_POSTS, handle_list_saved_posts)
 
     mutation_registry.register(PostsMutationAction.TOGGLE_LIKE, handle_toggle_like)
     mutation_registry.register(PostsMutationAction.ADD_COMMENT, handle_add_comment)
+    mutation_registry.register(PostsMutationAction.TOGGLE_SAVE_POST, handle_toggle_save_post)

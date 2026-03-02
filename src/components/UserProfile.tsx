@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useClerk, SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, Upload } from 'lucide-react';
 
 const UserProfile = () => {
   const { user } = useUser();
@@ -72,6 +72,17 @@ const UserProfile = () => {
                   Profile
                 </button>
                 
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/uploader');
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Uploader portal
+                </button>
+
                 <button
                   onClick={() => {
                     setIsOpen(false);

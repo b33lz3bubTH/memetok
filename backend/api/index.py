@@ -14,7 +14,7 @@ from core.resources.posts.controller import router as posts_upload_router
 from core.services.cqrs.event_bus import get_event_bus
 from core.resources.posts.handlers import register_posts_handlers
 from core.resources.posts.service import PostsService
-from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository
+from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
 
 
 logger = get_logger(__name__)
@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
         posts_repo=PostsRepository(),
         likes_repo=LikesRepository(),
         comments_repo=CommentsRepository(),
+        saved_posts_repo=SavedPostsRepository(),
         jobs_service=jobs_service,
     )
     register_posts_handlers(posts_service)

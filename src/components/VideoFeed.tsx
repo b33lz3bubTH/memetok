@@ -8,7 +8,6 @@ import CommentDrawer from './CommentDrawer';
 import Loader from './Loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
-import CreatePostButton from './CreatePostButton';
 import UserProfile from './UserProfile';
 
 const VideoFeed = () => {
@@ -102,7 +101,7 @@ const VideoFeed = () => {
               <div className="glass rounded-2xl p-6 text-center max-w-sm">
                 <div className="text-lg font-semibold text-white mb-1">No posts yet</div>
                 <div className="text-sm text-white/70">
-                  Be the first one to post. Tap <span className="font-semibold">+</span> to upload.
+No uploads available yet. Check back soon.
                 </div>
               </div>
             </div>
@@ -156,7 +155,6 @@ const VideoFeed = () => {
         </div>
       )} */}
 
-      <CreatePostButton />
     </div>
   );
 };

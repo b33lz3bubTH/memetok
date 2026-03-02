@@ -38,8 +38,8 @@ export const media = {
   async uploadWithProgress(
     files: File[],
     opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
-    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string },
-    token?: string
+    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; userId: string },
+    optsAuth?: { token?: string; uploaderApiKey?: string }
   ): Promise<Post> {
     const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
     return await new Promise((resolve, reject) => {
@@ -47,8 +47,11 @@ export const media = {
       xhr.open('POST', `${apiBase}/api/posts/upload`);
       xhr.responseType = 'json';
 
-      if (token) {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      if (optsAuth?.token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${optsAuth.token}`);
+      }
+      if (optsAuth?.uploaderApiKey) {
+        xhr.setRequestHeader('X-API-KEY', optsAuth.uploaderApiKey);
       }
 
       xhr.upload.onprogress = (e) => {
@@ -89,6 +92,7 @@ export const media = {
         fd.append('tags', metadata.tags.join(','));
         if (metadata.username) fd.append('username', metadata.username);
         if (metadata.profilePhoto) fd.append('profilePhoto', metadata.profilePhoto);
+        fd.append('user_id', metadata.userId);
       }
       xhr.send(fd);
     });
@@ -141,5 +145,15 @@ export const postsApi = {
 
   async listByUser(userId: string, take = 50, skip = 0) {
     return apiClient.query.listUserPosts({ userId, take, skip });
+  },
+
+  async listSaved(token: string, take = 50, skip = 0) {
+    apiClient.setToken(token);
+    return apiClient.query.listSavedPosts({ take, skip });
+  },
+
+  async toggleSave(postId: string, token: string) {
+    apiClient.setToken(token);
+    return apiClient.mutation.toggleSavePost({ postId });
   },
 };
