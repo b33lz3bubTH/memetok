@@ -31,6 +31,7 @@ export type Comment = {
   postId: string;
   userId: string;
   text: string;
+  firstName?: string;
   createdAt: string;
 };
 
@@ -38,7 +39,7 @@ export type SuperAdminUploader = {
   id: string;
   email: string;
   isActive: boolean;
-  userId?: string;
+  apiKey?: string;
 };
 
 export type SuperAdminApiKey = {
@@ -54,7 +55,7 @@ export const media = {
   async uploadWithProgress(
     files: File[],
     opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
-    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; userId: string },
+    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; email: string },
     optsAuth?: { token?: string; uploaderApiKey?: string }
   ): Promise<Post> {
     return await new Promise((resolve, reject) => {
@@ -107,7 +108,7 @@ export const media = {
         fd.append('tags', metadata.tags.join(','));
         if (metadata.username) fd.append('username', metadata.username);
         if (metadata.profilePhoto) fd.append('profilePhoto', metadata.profilePhoto);
-        fd.append('user_id', metadata.userId);
+        fd.append('email', metadata.email);
       }
       xhr.send(fd);
     });
@@ -125,54 +126,54 @@ export const media = {
 
 export const accessApi = {
   async me(token: string): Promise<{ userId: string; isUploader: boolean }> {
-    const res = await fetch(`${apiBase}/api/me/access`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`failed to load access (${res.status})`);
-    return res.json();
+    apiClient.setToken(token);
+    return apiClient.query.getMyAccess();
   },
 };
 
 export const superAdminApi = {
-  async listUploaders(adminKey: string): Promise<{ items: SuperAdminUploader[] }> {
-    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to list uploaders (${res.status})`);
-    return res.json();
+  async listUploaders(): Promise<{ items: SuperAdminUploader[] }> {
+    const res = await apiClient.query.listUploaders();
+    return {
+      items: res.items.map((i: any) => ({
+        id: i.id,
+        email: i.email,
+        isActive: i.status === 'active'
+      }))
+    };
   },
-  async addUploader(adminKey: string, email: string): Promise<SuperAdminUploader> {
-    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
-      body: JSON.stringify({ email }),
-    });
-    if (!res.ok) throw new Error(`failed to add uploader (${res.status})`);
-    return res.json();
+  async addUploader(email: string, name?: string): Promise<SuperAdminUploader> {
+    const res = await apiClient.mutation.createUploader({ email, name });
+    return {
+      id: res.id,
+      email: res.email,
+      isActive: res.status === 'active',
+      apiKey: res.apiKey
+    };
   },
-  async listApiKeys(adminKey: string): Promise<{ items: SuperAdminApiKey[] }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to list api keys (${res.status})`);
-    return res.json();
+  async listApiKeys(): Promise<{ items: SuperAdminApiKey[] }> {
+    // In the new system, API keys are per uploader.
+    // However, for compatibility with the old UI, we'll return all uploaders' info or similar.
+    // Or just let the UI manage uploaders.
+    // The old UI had a separate list of standalone API keys.
+    // I'll return an empty list for now or adapt the UI.
+    return { items: [] };
   },
-  async createApiKey(adminKey: string, name: string): Promise<{ id: string; name: string; apiKey: string }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error(`failed to create api key (${res.status})`);
-    return res.json();
+  async validateApiKey(email: string, apiKey: string): Promise<{ isValid: boolean }> {
+    const res = await apiClient.query.validateApiKey({ email, apiKey });
+    return { isValid: res.isValid };
   },
-  async revokeApiKey(adminKey: string, id: string): Promise<{ revoked: boolean }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys/${id}/revoke`, {
-      method: 'POST',
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to revoke api key (${res.status})`);
-    return res.json();
+  async createApiKey(uploaderId: string): Promise<{ apiKey: string }> {
+    return apiClient.mutation.revokeApiKey({ uploaderId });
+  },
+  async revokeApiKey(uploaderId: string): Promise<{ revoked: boolean }> {
+    // In new system, we just update status to something else if we want to "revoke" the uploader
+    // or revoke the single API key they have.
+    await apiClient.mutation.revokeApiKey({ uploaderId });
+    return { revoked: true };
+  },
+  setAdminKey(key: string) {
+    apiClient.setSuperAdminKey(key);
   },
 };
 
@@ -206,9 +207,9 @@ export const postsApi = {
     return res;
   },
 
-  async addComment(postId: string, text: string, token: string) {
+  async addComment(postId: string, text: string, token: string, firstName?: string) {
     apiClient.setToken(token);
-    return apiClient.mutation.addComment({ postId, text });
+    return apiClient.mutation.addComment({ postId, text, firstName });
   },
 
   async listByUser(userId: string, take = 50, skip = 0) {

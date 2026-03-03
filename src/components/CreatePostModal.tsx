@@ -1,40 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
-import { Loader2, Upload, X } from 'lucide-react';
-import { useAppDispatch } from '@/store/hooks';
-import { fetchFeed } from '@/store/slices/feedSlice';
-import { media, postsApi, type MediaType } from '@/lib/api';
-import { toast } from '@/hooks/use-toast';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { Loader2, Upload, X } from "lucide-react";
+import { useAppDispatch } from "@/store/hooks";
+import { fetchFeed } from "@/store/slices/feedSlice";
+import { media, postsApi, type MediaType } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
-type StepKey = 'upload' | 'preview' | 'details' | 'publish';
+type StepKey = "upload" | "preview" | "details" | "publish";
 
 const STEP_ORDER: Array<{ key: StepKey; title: string; subtitle: string }> = [
-  { key: 'upload', title: 'Upload', subtitle: 'Pick video or images' },
-  { key: 'preview', title: 'Preview', subtitle: 'Check what you selected' },
-  { key: 'details', title: 'Details', subtitle: 'Title + tags' },
-  { key: 'publish', title: 'Publish', subtitle: 'Final preview + upload' },
+  { key: "upload", title: "Upload", subtitle: "Pick video or images" },
+  { key: "preview", title: "Preview", subtitle: "Check what you selected" },
+  { key: "details", title: "Details", subtitle: "Title + tags" },
+  { key: "publish", title: "Publish", subtitle: "Final preview + upload" },
 ];
 
 function isVideoFile(f: File) {
   const name = f.name.toLowerCase();
-  return f.type === 'video/mp4' || name.endsWith('.mp4');
+  return f.type === "video/mp4" || name.endsWith(".mp4");
 }
 
 function isImageFile(f: File) {
-  return f.type.startsWith('image/');
+  return f.type.startsWith("image/");
 }
 
 function parseTags(raw: string): string[] {
   return raw
-    .split(',')
+    .split(",")
     .map((t) => t.trim())
     .filter(Boolean)
     .slice(0, 20);
@@ -57,12 +68,12 @@ export default function CreatePostModal({
   const abortRef = useRef<AbortController | null>(null);
 
   const [stepIdx, setStepIdx] = useState(0);
-  const step = STEP_ORDER[stepIdx]?.key ?? 'upload';
+  const step = STEP_ORDER[stepIdx]?.key ?? "upload";
 
   const [files, setFiles] = useState<File[]>([]);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [tagsRaw, setTagsRaw] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [tagsRaw, setTagsRaw] = useState("");
 
   const [isUploading, setIsUploading] = useState(false);
   const [overallPct, setOverallPct] = useState(0);
@@ -73,15 +84,15 @@ export default function CreatePostModal({
   const hasVideo = useMemo(() => files.some(isVideoFile), [files]);
   const mediaType: MediaType | null = useMemo(() => {
     if (files.length === 0) return null;
-    if (hasVideo) return 'video';
-    return 'image';
+    if (hasVideo) return "video";
+    return "image";
   }, [files.length, hasVideo]);
 
   const previews = useMemo(() => {
     return files.map((f) => ({
       file: f,
       url: URL.createObjectURL(f),
-      kind: isVideoFile(f) ? 'video' : 'image',
+      kind: isVideoFile(f) ? "video" : "image",
     }));
   }, [files]);
 
@@ -94,9 +105,9 @@ export default function CreatePostModal({
   const reset = () => {
     setStepIdx(0);
     setFiles([]);
-    setTitle('');
-    setDescription('');
-    setTagsRaw('');
+    setTitle("");
+    setDescription("");
+    setTagsRaw("");
     setIsUploading(false);
     setOverallPct(0);
     setError(null);
@@ -110,7 +121,8 @@ export default function CreatePostModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const isUploadStepValid = files.length > 0 && !!mediaType && (hasVideo ? files.length === 1 : true);
+  const isUploadStepValid =
+    files.length > 0 && !!mediaType && (hasVideo ? files.length === 1 : true);
   const isDetailsStepValid = title.trim().length > 0;
 
   const getMaxAllowedStepIdx = () => {
@@ -120,9 +132,9 @@ export default function CreatePostModal({
   };
 
   const canGoNext =
-    (step === 'upload' && isUploadStepValid) ||
-    (step === 'preview' && isUploadStepValid) ||
-    (step === 'details' && isUploadStepValid && isDetailsStepValid);
+    (step === "upload" && isUploadStepValid) ||
+    (step === "preview" && isUploadStepValid) ||
+    (step === "details" && isUploadStepValid && isDetailsStepValid);
 
   const goNext = () => {
     if (!canGoNext) return;
@@ -132,29 +144,34 @@ export default function CreatePostModal({
   const goBack = () => setStepIdx((i) => Math.max(i - 1, 0));
 
   const validateSelection = (picked: File[]) => {
-    if (picked.length === 0) return { ok: false, reason: 'No file selected.' };
-    
+    if (picked.length === 0) return { ok: false, reason: "No file selected." };
+
     const videos = picked.filter(isVideoFile);
     const images = picked.filter(isImageFile);
-    
-    if (videos.length > 1) return { ok: false, reason: 'Only one video is allowed per post.' };
-    if (videos.length > 0 && images.length > 0) return { ok: false, reason: 'Cannot mix videos and images in one post.' };
-    
+
+    if (videos.length > 1)
+      return { ok: false, reason: "Only one video is allowed per post." };
+    if (videos.length > 0 && images.length > 0)
+      return { ok: false, reason: "Cannot mix videos and images in one post." };
+
     for (const file of picked) {
       const isVideo = isVideoFile(file);
       const isImage = isImageFile(file);
       if (!isVideo && !isImage) {
-        return { ok: false, reason: `File ${file.name} is not a valid image or MP4 video.` };
+        return {
+          ok: false,
+          reason: `File ${file.name} is not a valid image or MP4 video.`,
+        };
       }
     }
-    
+
     return { ok: true as const };
   };
 
   const pickFiles = (picked: File[]) => {
     const v = validateSelection(picked);
     if (!v.ok) {
-      toast({ title: 'Invalid selection', description: v.reason });
+      toast({ title: "Invalid selection", description: v.reason });
       return;
     }
     setFiles(picked);
@@ -166,7 +183,10 @@ export default function CreatePostModal({
     if (files.length === 0 || !mediaType) return;
     const token = await getToken();
     if (!token) {
-      toast({ title: 'Sign in required', description: 'You need to login to post.' });
+      toast({
+        title: "Sign in required",
+        description: "You need to login to post.",
+      });
       return;
     }
 
@@ -193,17 +213,17 @@ export default function CreatePostModal({
           tags,
           username: user?.fullName || user?.username || undefined,
           profilePhoto: user?.imageUrl || undefined,
-          userId: user?.id || '',
+          email: user?.primaryEmailAddress?.emailAddress || "",
         },
-        { token: token || undefined, uploaderApiKey }
+        { token: token || undefined, uploaderApiKey },
       );
 
       await dispatch(fetchFeed(1));
-      toast({ title: 'Posted', description: 'Your post is live' });
+      toast({ title: "Posted", description: "Your post is live" });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Upload failed';
+      const msg = e instanceof Error ? e.message : "Upload failed";
       setError(msg);
-      toast({ title: 'Upload failed', description: msg });
+      toast({ title: "Upload failed", description: msg });
       return;
     } finally {
       setIsUploading(false);
@@ -217,14 +237,22 @@ export default function CreatePostModal({
     abortRef.current?.abort();
   };
 
-    const renderPreview = () => {
+  const renderPreview = () => {
     if (previews.length === 0) return null;
     if (previews.length === 1) {
       const p = previews[0]!;
-      return p.kind === 'video' ? (
-        <video src={p.url} controls className="w-full rounded-lg max-h-[420px] bg-black" />
+      return p.kind === "video" ? (
+        <video
+          src={p.url}
+          controls
+          className="w-full rounded-lg max-h-[420px] bg-black"
+        />
       ) : (
-        <img src={p.url} className="w-full rounded-lg max-h-[420px] object-contain bg-black" alt="preview" />
+        <img
+          src={p.url}
+          className="w-full rounded-lg max-h-[420px] object-contain bg-black"
+          alt="preview"
+        />
       );
     }
 
@@ -241,7 +269,9 @@ export default function CreatePostModal({
                     alt={p.file.name}
                   />
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground truncate text-center">{p.file.name}</div>
+                <div className="mt-2 text-xs text-muted-foreground truncate text-center">
+                  {p.file.name}
+                </div>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -253,12 +283,17 @@ export default function CreatePostModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (!isUploading ? onOpenChange(o) : undefined)}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (!isUploading ? onOpenChange(o) : undefined)}
+    >
       <DialogContent className="p-0 overflow-hidden max-w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col">
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] flex-1 min-h-0">
           {/* Steps */}
           <div className="border-b lg:border-b-0 lg:border-r bg-muted/30 p-4">
-            <div className="text-xs font-medium text-muted-foreground mb-3">Create post</div>
+            <div className="text-xs font-medium text-muted-foreground mb-3">
+              Create post
+            </div>
             <div className="space-y-2">
               {STEP_ORDER.map((s, idx) => {
                 const active = idx === stepIdx;
@@ -269,23 +304,33 @@ export default function CreatePostModal({
                     type="button"
                     onClick={() => (!isUploading ? setStepIdx(idx) : undefined)}
                     className={[
-                      'w-full text-left rounded-lg px-3 py-2 transition',
-                      active ? 'bg-background shadow-sm' : 'hover:bg-background/60',
-                    ].join(' ')}
+                      "w-full text-left rounded-lg px-3 py-2 transition",
+                      active
+                        ? "bg-background shadow-sm"
+                        : "hover:bg-background/60",
+                    ].join(" ")}
                     disabled={isUploading}
                   >
                     <div className="flex items-center gap-2">
                       <div
                         className={[
-                          'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold',
-                          done ? 'bg-primary text-primary-foreground' : active ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                        ].join(' ')}
+                          "h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold",
+                          done
+                            ? "bg-primary text-primary-foreground"
+                            : active
+                              ? "bg-primary/15 text-primary"
+                              : "bg-muted text-muted-foreground",
+                        ].join(" ")}
                       >
                         {idx + 1}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold leading-5 truncate">{s.title}</div>
-                        <div className="text-xs text-muted-foreground truncate">{s.subtitle}</div>
+                        <div className="text-sm font-semibold leading-5 truncate">
+                          {s.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {s.subtitle}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -300,14 +345,16 @@ export default function CreatePostModal({
               <DialogTitle>{STEP_ORDER[stepIdx]?.title}</DialogTitle>
             </DialogHeader>
 
-            {step === 'upload' && (
+            {step === "upload" && (
               <div className="space-y-4">
                 <div className="rounded-xl border border-dashed p-6 bg-background">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
-                    <div className="text-sm font-semibold">Upload media</div>
+                      <div className="text-sm font-semibold">Upload media</div>
                       <div className="text-xs text-muted-foreground">
-                        {hasVideo ? '1 video only (MP4).' : 'Multiple images allowed.'}
+                        {hasVideo
+                          ? "1 video only (MP4)."
+                          : "Multiple images allowed."}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -344,15 +391,21 @@ export default function CreatePostModal({
                     onChange={(e) => {
                       const picked = Array.from(e.target.files ?? []);
                       pickFiles(picked);
-                      e.target.value = '';
+                      e.target.value = "";
                     }}
                   />
 
                   {files.length > 0 && (
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge variant="secondary">{hasVideo ? 'Video' : 'Image'}</Badge>
+                      <Badge variant="secondary">
+                        {hasVideo ? "Video" : "Image"}
+                      </Badge>
                       {files.map((f) => (
-                        <Badge key={f.name} variant="outline" className="max-w-[220px] truncate">
+                        <Badge
+                          key={f.name}
+                          variant="outline"
+                          className="max-w-[220px] truncate"
+                        >
                           {f.name}
                         </Badge>
                       ))}
@@ -364,9 +417,11 @@ export default function CreatePostModal({
               </div>
             )}
 
-            {step === 'preview' && <div className="space-y-4">{renderPreview()}</div>}
+            {step === "preview" && (
+              <div className="space-y-4">{renderPreview()}</div>
+            )}
 
-            {step === 'details' && (
+            {step === "details" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="post-title">Title</Label>
@@ -380,7 +435,9 @@ export default function CreatePostModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="post-description">Description (optional)</Label>
+                  <Label htmlFor="post-description">
+                    Description (optional)
+                  </Label>
                   <textarea
                     id="post-description"
                     value={description}
@@ -407,23 +464,29 @@ export default function CreatePostModal({
                           {t}
                         </Badge>
                       ))}
-                      {tags.length > 12 && <Badge variant="secondary">+{tags.length - 12}</Badge>}
+                      {tags.length > 12 && (
+                        <Badge variant="secondary">+{tags.length - 12}</Badge>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {step === 'publish' && (
+            {step === "publish" && (
               <div className="space-y-4">
                 {renderPreview()}
 
                 <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">Final check</div>
-                    <Badge variant="outline">{files.length} item{files.length === 1 ? '' : 's'}</Badge>
+                    <Badge variant="outline">
+                      {files.length} item{files.length === 1 ? "" : "s"}
+                    </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">{title ? title : 'No title'}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {title ? title : "No title"}
+                  </div>
                   {tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {tags.slice(0, 8).map((t) => (
@@ -431,7 +494,9 @@ export default function CreatePostModal({
                           {t}
                         </Badge>
                       ))}
-                      {tags.length > 8 && <Badge variant="secondary">+{tags.length - 8}</Badge>}
+                      {tags.length > 8 && (
+                        <Badge variant="secondary">+{tags.length - 8}</Badge>
+                      )}
                     </div>
                   )}
                 </div>
@@ -439,9 +504,7 @@ export default function CreatePostModal({
                 {(isUploading || doneCount > 0) && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>
-                        {isUploading ? 'Uploading…' : 'Done'}
-                      </span>
+                      <span>{isUploading ? "Uploading…" : "Done"}</span>
                       <span>{Math.round(overallPct)}%</span>
                     </div>
                     <Progress value={overallPct} />
@@ -451,35 +514,55 @@ export default function CreatePostModal({
                   </div>
                 )}
 
-                {error && <div className="text-sm text-destructive">{error}</div>}
+                {error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
               </div>
             )}
 
             {/* Footer */}
             <div className="mt-6 flex items-center justify-between gap-2">
-              <Button type="button" variant="outline" onClick={goBack} disabled={stepIdx === 0 || isUploading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goBack}
+                disabled={stepIdx === 0 || isUploading}
+              >
                 Back
               </Button>
 
               <div className="flex items-center gap-2">
                 {isUploading && (
-                  <Button type="button" variant="outline" onClick={cancelUpload}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelUpload}
+                  >
                     Cancel upload
                   </Button>
                 )}
 
-                {step !== 'publish' ? (
-                  <Button type="button" onClick={goNext} disabled={!canGoNext || isUploading}>
+                {step !== "publish" ? (
+                  <Button
+                    type="button"
+                    onClick={goNext}
+                    disabled={!canGoNext || isUploading}
+                  >
                     Next
                   </Button>
                 ) : (
-                  <Button type="button" onClick={startUpload} disabled={files.length === 0 || isUploading}>
+                  <Button
+                    type="button"
+                    onClick={startUpload}
+                    disabled={files.length === 0 || isUploading}
+                  >
                     {isUploading ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
+                        Uploading
                       </>
                     ) : (
-                      'Publish'
+                      "Publish"
                     )}
                   </Button>
                 )}
@@ -491,4 +574,3 @@ export default function CreatePostModal({
     </Dialog>
   );
 }
-

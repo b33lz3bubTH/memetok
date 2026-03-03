@@ -1,5 +1,4 @@
-1. there will be one super admin, with its admin panel, that can add email for uploaders and can generate api keys and revoke them
-2. when uploaders uploading, just check with clerk that email and session is valid, and the api key that was provided is valid, it will be set in my db, nothing on clerk side. clerk will just do the login verification thats all.
-3. /super-admin on frontnend to add email and api keys dynamically thats all, no google login required for super admin, it will be purely done by api key.
-4. i want enterprise codebase, only uploaders can see there uploaded post and saved posts.
-5. normal users can like, comment and save posts, and they wont have my posts option in there profile page.
+1. video isnt playing properly, thumb is shown, but the video at frontend isnt playing, add debug logs, what might be the issue.
+2. when logged in call backend, to check if the user is uploader or not, if yes then show upload button floating, onclick it will take to the /upload page
+3. if the user is uploader then they can see the posts they uploaded.
+4. for normal users it wil  be just like, comment and share, thats all.

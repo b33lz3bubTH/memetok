@@ -1,16 +1,26 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleMute, setActiveVideoId } from '@/store/slices/uiSlice';
-import { toggleLike, setLikesCount, setLikedState } from '@/store/slices/feedSlice';
-import { VideoPost } from '@/config/appConfig';
-import { Volume2, VolumeX, Play, Loader2, Heart } from 'lucide-react';
-import VideoSidebar from './VideoSidebar';
-import VideoOverlay from './VideoOverlay';
-import { PreloadStrategy } from '@/hooks/useVideoPreload';
-import { media as mediaApi, postsApi } from '@/lib/api';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { useAuth } from '@clerk/clerk-react';
-import gsap from 'gsap';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { toggleMute, setActiveVideoId } from "@/store/slices/uiSlice";
+import {
+  toggleLike,
+  setLikesCount,
+  setLikedState,
+} from "@/store/slices/feedSlice";
+import { VideoPost } from "@/config/appConfig";
+import { Volume2, VolumeX, Play, Loader2, Heart } from "lucide-react";
+import VideoSidebar from "./VideoSidebar";
+import VideoOverlay from "./VideoOverlay";
+import { PreloadStrategy } from "@/hooks/useVideoPreload";
+import { media as mediaApi, postsApi } from "@/lib/api";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { useAuth } from "@clerk/clerk-react";
+import gsap from "gsap";
 
 interface VideoCardProps {
   video: VideoPost;
@@ -20,12 +30,12 @@ interface VideoCardProps {
   isNextUp?: boolean;
 }
 
-const VideoCard = ({ 
-  video, 
-  isActive, 
-  dataIndex, 
-  preloadStrategy = 'auto',
-  isNextUp = false 
+const VideoCard = ({
+  video,
+  isActive,
+  dataIndex,
+  preloadStrategy = "auto",
+  isNextUp = false,
 }: VideoCardProps) => {
   const dispatch = useAppDispatch();
   const { isMuted } = useAppSelector((state) => state.ui);
@@ -43,13 +53,22 @@ const VideoCard = ({
   const [bufferProgress, setBufferProgress] = useState(0);
   const [canPlay, setCanPlay] = useState(false);
 
-  const videoUrl = video.postVideos[0]?.videoUrl || '';
-  const mediaItems = video.media || (video.mediaId ? [{ type: video.mediaType || 'image', id: video.mediaId }] : []);
+  const videoUrl = video.postVideos[0]?.videoUrl || "";
+  const mediaItems =
+    video.media ||
+    (video.mediaId
+      ? [{ type: video.mediaType || "image", id: video.mediaId }]
+      : []);
   const firstMedia = mediaItems[0];
-  const isImage = firstMedia?.type === 'image' || video.mediaType === 'image';
-  const imageItems = mediaItems.filter(m => m.type === 'image');
+  const isImage = firstMedia?.type === "image" || video.mediaType === "image";
+  const imageItems = mediaItems.filter((m) => m.type === "image");
   const hasMultipleImages = imageItems.length > 1;
-  const imageUrl = firstMedia && firstMedia.type === 'image' ? mediaApi.imageUrl(firstMedia.id) : (video.mediaId ? mediaApi.imageUrl(video.mediaId) : video.extras.thumbnail);
+  const imageUrl =
+    firstMedia && firstMedia.type === "image"
+      ? mediaApi.imageUrl(firstMedia.id)
+      : video.mediaId
+        ? mediaApi.imageUrl(video.mediaId)
+        : video.extras.thumbnail;
 
   // Track buffer progress
   useEffect(() => {
@@ -58,15 +77,19 @@ const VideoCard = ({
 
     const handleProgress = () => {
       if (videoElement.buffered.length > 0) {
-        const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
+        const bufferedEnd = videoElement.buffered.end(
+          videoElement.buffered.length - 1,
+        );
         const duration = videoElement.duration;
         if (duration > 0) {
           const progress = (bufferedEnd / duration) * 100;
           setBufferProgress(Math.min(progress, 100));
-          
+
           // Log for debugging (Next Up video)
           if (isNextUp && progress > 0) {
-            console.log(`📦 Buffering Video ${dataIndex}: ${progress.toFixed(1)}%`);
+            console.log(
+              `📦 Buffering Video ${dataIndex}: ${progress.toFixed(1)}%`,
+            );
           }
         }
       }
@@ -85,16 +108,16 @@ const VideoCard = ({
       setIsBuffering(false);
     };
 
-    videoElement.addEventListener('progress', handleProgress);
-    videoElement.addEventListener('canplay', handleCanPlay);
-    videoElement.addEventListener('waiting', handleWaiting);
-    videoElement.addEventListener('playing', handlePlaying);
+    videoElement.addEventListener("progress", handleProgress);
+    videoElement.addEventListener("canplay", handleCanPlay);
+    videoElement.addEventListener("waiting", handleWaiting);
+    videoElement.addEventListener("playing", handlePlaying);
 
     return () => {
-      videoElement.removeEventListener('progress', handleProgress);
-      videoElement.removeEventListener('canplay', handleCanPlay);
-      videoElement.removeEventListener('waiting', handleWaiting);
-      videoElement.removeEventListener('playing', handlePlaying);
+      videoElement.removeEventListener("progress", handleProgress);
+      videoElement.removeEventListener("canplay", handleCanPlay);
+      videoElement.removeEventListener("waiting", handleWaiting);
+      videoElement.removeEventListener("playing", handlePlaying);
     };
   }, [isNextUp, dataIndex]);
 
@@ -110,8 +133,21 @@ const VideoCard = ({
     }
 
     if (isActive) {
+      console.log("▶️ Attempting to play video:", {
+        videoId: video.id,
+        videoUrl,
+        isImage,
+        isActive,
+      });
       dispatch(setActiveVideoId(video.id));
-      videoElement.play().catch(console.error);
+      videoElement
+        .play()
+        .then(() => {
+          console.log(`✅ Started playing video: ${video.id}`);
+        })
+        .catch((e) => {
+          console.error(`❌ Error playing video ${video.id}:`, e);
+        });
       setIsPlaying(true);
     } else {
       videoElement.pause();
@@ -157,15 +193,18 @@ const VideoCard = ({
     }
   }, [isImage]);
 
-  const handleMuteToggle = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    dispatch(toggleMute());
-  }, [dispatch]);
+  const handleMuteToggle = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      dispatch(toggleMute());
+    },
+    [dispatch],
+  );
 
   const handleDoubleTap = useCallback(async () => {
     // Show like animation
     setShowLikeAnimation(true);
-    
+
     // Toggle like
     dispatch(toggleLike(video.id));
 
@@ -184,24 +223,24 @@ const VideoCard = ({
     // Wait for DOM to update
     setTimeout(() => {
       if (!likeAnimationRef.current) return;
-      
-      const heart = likeAnimationRef.current.querySelector('svg') as SVGElement;
+
+      const heart = likeAnimationRef.current.querySelector("svg") as SVGElement;
       if (!heart) return;
-      
+
       // Reset initial state
       gsap.set(likeAnimationRef.current, { scale: 0, opacity: 1 });
-      gsap.set(heart, { fill: '#ffffff', stroke: '#ffffff' });
-      
+      gsap.set(heart, { fill: "#ffffff", stroke: "#ffffff" });
+
       // Step 1: Scale up and change color
       gsap.to(likeAnimationRef.current, {
         scale: 1.3,
         duration: 0.3,
-        ease: 'back.out(1.7)',
+        ease: "back.out(1.7)",
         onComplete: () => {
           // Step 2: Change color to red
           gsap.to(heart, {
-            fill: '#ef4444',
-            stroke: '#ef4444',
+            fill: "#ef4444",
+            stroke: "#ef4444",
             duration: 0.2,
             onComplete: () => {
               // Step 3: Wait a bit, then shrink
@@ -210,14 +249,14 @@ const VideoCard = ({
                 gsap.to(likeAnimationRef.current, {
                   scale: 0.6,
                   duration: 0.3,
-                  ease: 'power2.in',
+                  ease: "power2.in",
                   onComplete: () => {
                     // Step 4: Fade away
                     if (!likeAnimationRef.current) return;
                     gsap.to(likeAnimationRef.current, {
                       opacity: 0,
                       duration: 0.5,
-                      ease: 'power2.out',
+                      ease: "power2.out",
                       onComplete: () => {
                         // Step 5: Hide completely
                         setShowLikeAnimation(false);
@@ -233,32 +272,38 @@ const VideoCard = ({
     }, 10);
   }, [dispatch, video.id, getToken]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-    
-    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+
+      if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleDoubleTap();
+        lastTapRef.current = 0;
+      } else {
+        lastTapRef.current = now;
+      }
+    },
+    [handleDoubleTap],
+  );
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       handleDoubleTap();
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
-    }
-  }, [handleDoubleTap]);
-
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleDoubleTap();
-  }, [handleDoubleTap]);
+    },
+    [handleDoubleTap],
+  );
 
   return (
     <div className="video-card" data-index={dataIndex}>
       {/* Thumbnail backdrop while loading */}
       {!canPlay && isActive && !isImage && (
         <div className="absolute inset-0 z-10">
-          <div 
+          <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${video.extras.thumbnail})` }}
           />
@@ -276,7 +321,10 @@ const VideoCard = ({
             <Carousel opts={{ loop: true }} className="w-full h-screen">
               <CarouselContent className="h-screen -ml-0">
                 {imageItems.map((item) => (
-                  <CarouselItem key={item.id} className="h-screen pl-0 basis-full">
+                  <CarouselItem
+                    key={item.id}
+                    className="h-screen pl-0 basis-full"
+                  >
                     <img
                       src={mediaApi.imageUrl(item.id)}
                       className="w-full h-screen object-contain"
@@ -326,11 +374,11 @@ const VideoCard = ({
       {/* Buffer Progress Bar for Next Up video */}
       {isNextUp && !isImage && bufferProgress < 100 && (
         <div className="absolute bottom-0 left-0 right-0 z-30 h-1 bg-white/20">
-          <div 
+          <div
             className="h-full bg-theme-primary transition-all duration-300 ease-out"
-            style={{ 
+            style={{
               width: `${bufferProgress}%`,
-              background: 'var(--theme-gradient)'
+              background: "var(--theme-gradient)",
             }}
           />
           <div className="absolute -top-6 left-2 text-xs text-white/60 font-mono">

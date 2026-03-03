@@ -116,14 +116,21 @@ class PostsService:
         now = now_utc()
         return await self.saved_posts_repo.toggle(post_id=post_id, user_id=user_id, now=now)
 
-    async def add_comment(self, post_id: str, user_id: str, text: str) -> CommentDTO:
+    async def add_comment(self, post_id: str, user_id: str, text: str, first_name: str | None = None) -> CommentDTO:
         post = await self.posts_repo.find_by_id(post_id)
         if not post:
             raise PostNotFoundError()
 
         now = now_utc()
         comment_id = str(uuid4())
-        doc = {"id": comment_id, "postId": post_id, "userId": user_id, "text": text, "createdAt": now}
+        doc = {
+            "id": comment_id,
+            "postId": post_id,
+            "userId": user_id,
+            "text": text,
+            "firstName": first_name,
+            "createdAt": now,
+        }
         await self.comments_repo.insert(doc)
         await self.posts_repo.inc_counts(post_id=post_id, comments_delta=1)
         return CommentDTO.model_validate(doc)

@@ -1,5 +1,5 @@
 import { env } from '@/lib/env';
-import { PostsQueryAction, PostsMutationAction } from '@/lib/actions';
+import { PostsQueryAction, PostsMutationAction, UploadersQueryAction, UploadersMutationAction } from '@/lib/actions';
 
 type RequestType = 'query' | 'mutation';
 
@@ -10,17 +10,25 @@ type QueryPayload = {
   [PostsQueryAction.GET_POST_STATS]: { postId: string };
   [PostsQueryAction.LIST_COMMENTS]: { postId: string; take?: number; skip?: number };
   [PostsQueryAction.LIST_SAVED_POSTS]: { take?: number; skip?: number };
+  [UploadersQueryAction.LIST_UPLOADERS]: {};
+  [UploadersQueryAction.GET_UPLOADER]: { uploaderId: string };
+  [UploadersQueryAction.VALIDATE_API_KEY]: { email: string; apiKey: string };
+  [UploadersQueryAction.GET_MY_ACCESS]: {};
 };
 
 type MutationPayload = {
   [PostsMutationAction.TOGGLE_LIKE]: { postId: string };
-  [PostsMutationAction.ADD_COMMENT]: { postId: string; text: string };
+  [PostsMutationAction.ADD_COMMENT]: { postId: string; text: string; firstName?: string };
   [PostsMutationAction.TOGGLE_SAVE_POST]: { postId: string };
+  [UploadersMutationAction.CREATE_UPLOADER]: { email: string; name?: string };
+  [UploadersMutationAction.UPDATE_UPLOADER_STATUS]: { uploaderId: string; status: string };
+  [UploadersMutationAction.REVOKE_API_KEY]: { uploaderId: string };
 };
 
 class ApiClient {
   private baseUrl: string;
   private token?: string;
+  private superAdminKey?: string;
 
   constructor() {
     this.baseUrl = env.memetokApiBaseUrl.replace(/\/$/, '');
@@ -28,6 +36,10 @@ class ApiClient {
 
   setToken(token: string | undefined) {
     this.token = token;
+  }
+
+  setSuperAdminKey(key: string | undefined) {
+    this.superAdminKey = key;
   }
 
   private async execute<T>(
@@ -41,6 +53,10 @@ class ApiClient {
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    if (this.superAdminKey) {
+      headers['X-Super-Admin-Key'] = this.superAdminKey;
     }
 
     const response = await fetch(`${this.baseUrl}/api/execute`, {
@@ -108,6 +124,26 @@ class ApiClient {
         payload
       );
     },
+    
+    listUploaders: async (payload: QueryPayload[typeof UploadersQueryAction.LIST_UPLOADERS] = {}) => {
+      return this.execute<{ items: any[]; total: number }>(
+        'query',
+        UploadersQueryAction.LIST_UPLOADERS,
+        payload
+      );
+    },
+
+    getUploader: async (payload: QueryPayload[typeof UploadersQueryAction.GET_UPLOADER]) => {
+      return this.execute<any>('query', UploadersQueryAction.GET_UPLOADER, payload);
+    },
+
+    validateApiKey: async (payload: QueryPayload[typeof UploadersQueryAction.VALIDATE_API_KEY]) => {
+      return this.execute<{ isValid: boolean }>('query', UploadersQueryAction.VALIDATE_API_KEY, payload);
+    },
+
+    getMyAccess: async () => {
+      return this.execute<{ userId: string; isUploader: boolean }>('query', UploadersQueryAction.GET_MY_ACCESS);
+    },
   };
 
   mutation = {
@@ -125,6 +161,18 @@ class ApiClient {
 
     toggleSavePost: async (payload: MutationPayload[typeof PostsMutationAction.TOGGLE_SAVE_POST]) => {
       return this.execute<{ postId: string; saved: boolean }>('mutation', PostsMutationAction.TOGGLE_SAVE_POST, payload);
+    },
+
+    createUploader: async (payload: MutationPayload[typeof UploadersMutationAction.CREATE_UPLOADER]) => {
+      return this.execute<any>('mutation', UploadersMutationAction.CREATE_UPLOADER, payload);
+    },
+
+    updateUploaderStatus: async (payload: MutationPayload[typeof UploadersMutationAction.UPDATE_UPLOADER_STATUS]) => {
+      return this.execute<{ success: boolean }>('mutation', UploadersMutationAction.UPDATE_UPLOADER_STATUS, payload);
+    },
+
+    revokeApiKey: async (payload: MutationPayload[typeof UploadersMutationAction.REVOKE_API_KEY]) => {
+      return this.execute<{ apiKey: string }>('mutation', UploadersMutationAction.REVOKE_API_KEY, payload);
     },
   };
 }
