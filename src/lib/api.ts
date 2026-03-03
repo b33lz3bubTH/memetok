@@ -32,6 +32,7 @@ export type SuperAdminUploader = {
   email: string;
   isActive: boolean;
   apiKey?: string;
+  alreadyExists?: boolean;
 };
 
 export type SuperAdminApiKey = {
@@ -58,8 +59,14 @@ export const media = {
       if (optsAuth?.token) {
         xhr.setRequestHeader('Authorization', `Bearer ${optsAuth.token}`);
       }
-      if (optsAuth?.uploaderApiKey) {
-        xhr.setRequestHeader('X-API-KEY', optsAuth.uploaderApiKey);
+      
+      const uploaderKey = optsAuth?.uploaderApiKey;
+      const adminKey = apiClient.getSuperAdminKey();
+
+      if (uploaderKey) {
+        xhr.setRequestHeader('X-API-KEY', uploaderKey);
+      } else if (adminKey) {
+        xhr.setRequestHeader('X-Super-Admin-Key', adminKey);
       }
 
       xhr.upload.onprogress = (e) => {
@@ -139,7 +146,8 @@ export const superAdminApi = {
       id: res.id,
       email: res.email,
       isActive: res.status === 'active',
-      apiKey: res.apiKey
+      apiKey: res.apiKey,
+      alreadyExists: res.alreadyExists
     };
   },
   async listApiKeys(): Promise<{ items: SuperAdminApiKey[] }> {

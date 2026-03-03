@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import tempfile
 import time
 from collections import defaultdict
@@ -106,6 +107,7 @@ async def upload_and_create_post(
     profilePhoto: str | None = Form(default=None),
     email: str = Form(default=""),
     x_api_key: str = Header(default=None, alias="X-API-KEY"),
+    x_super_admin_key: str = Header(default=None, alias="X-Super-Admin-Key"),
     authorization: str | None = Header(default=None),
 ):
     if not authorization or not authorization.lower().startswith("bearer "):
@@ -117,19 +119,24 @@ async def upload_and_create_post(
     except AuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
-    if not x_api_key:
+    is_super_admin = False
+    if x_super_admin_key:
+        is_super_admin = hmac.compare_digest(x_super_admin_key, settings.super_admin_api_key)
+
+    if not is_super_admin and not x_api_key:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
     valid_email = email or claims.email or ""
 
-    access_service = get_access_control_service()
-    allowed = await access_service.validate_uploader(
-        email=valid_email,
-        api_key=x_api_key,
-    )
-    if not allowed:
-        logger.info("upload denied for user_id=%s email=%s", claims.user_id, valid_email)
-        raise HTTPException(status_code=403, detail="Uploader access denied")
+    if not is_super_admin:
+        access_service = get_access_control_service()
+        allowed = await access_service.validate_uploader(
+            email=valid_email,
+            api_key=x_api_key,
+        )
+        if not allowed:
+            logger.info("upload denied for user_id=%s email=%s", claims.user_id, valid_email)
+            raise HTTPException(status_code=403, detail="Uploader access denied")
 
     if not _upload_limiter.is_allowed(claims.user_id):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")

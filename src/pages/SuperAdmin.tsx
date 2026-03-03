@@ -37,6 +37,7 @@ export default function SuperAdmin() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsPage, setPostsPage] = useState(0);
   const [postsTake] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
 
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +65,19 @@ export default function SuperAdmin() {
       setPostsLoading(true);
       const res = await postsApi.list(postsTake, postsPage * postsTake);
       setPosts(res.items);
+      setHasMore(res.items.length === postsTake);
     } catch (e) {
       toast.error("Failed to load posts: " + (e as Error).message);
     } finally {
       setPostsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadPosts();
+    }
+  }, [postsPage, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -91,6 +99,10 @@ export default function SuperAdmin() {
       if (result.apiKey) {
         setNewApiKey(result.apiKey);
         toast.success("Uploader added successfully");
+      } else if (result.alreadyExists) {
+        toast.info(
+          "Account already authorized. Use 'Regenerate' to get a new key.",
+        );
       }
       await loadUploaders();
     } catch (e) {
@@ -192,7 +204,6 @@ export default function SuperAdmin() {
             <TabsTrigger
               value="posts"
               className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-black transition-all"
-              onClick={loadPosts}
             >
               <Film className="w-4 h-4 mr-2" />
               Content Management
@@ -329,10 +340,9 @@ export default function SuperAdmin() {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
                     <button
-                      disabled={postsPage === 0}
+                      disabled={postsPage === 0 || postsLoading}
                       onClick={() => {
                         setPostsPage((p) => Math.max(0, p - 1));
-                        setTimeout(loadPosts, 0);
                       }}
                       className="px-3 py-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all text-xs font-bold"
                     >
@@ -342,9 +352,9 @@ export default function SuperAdmin() {
                       Page {postsPage + 1}
                     </span>
                     <button
+                      disabled={!hasMore || postsLoading}
                       onClick={() => {
                         setPostsPage((p) => p + 1);
-                        setTimeout(loadPosts, 0);
                       }}
                       className="px-3 py-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all text-xs font-bold"
                     >

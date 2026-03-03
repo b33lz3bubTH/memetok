@@ -87,6 +87,10 @@ class ApiClient {
     this.superAdminKey = key;
   }
 
+  getSuperAdminKey() {
+    return this.superAdminKey;
+  }
+
   private async execute<T>(
     type: RequestType,
     action: string,
