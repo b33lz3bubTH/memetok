@@ -9,6 +9,7 @@ from core.logger.logger import get_logger
 from core.resources.posts.actions import PostsQueryAction, PostsMutationAction
 from core.resources.posts.service import PostsService
 from core.resources.posts.exceptions import PostNotFoundError
+from core.resources.posts.access_control import get_access_control_service
 from core.services.cqrs.handler_registry import query_registry, mutation_registry
 
 
@@ -43,9 +44,15 @@ def register_posts_handlers(svc: PostsService) -> None:
 
     async def handle_list_user_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
+            if not payload.get("__auth"):
+                raise HTTPException(status_code=401, detail="authentication required")
             user_id = str(payload.get("userId", ""))
             if not user_id:
                 raise HTTPException(status_code=400, detail="userId is required")
+            access_service = get_access_control_service()
+            is_uploader = await access_service.is_uploader_user(user_id)
+            if not is_uploader:
+                raise HTTPException(status_code=403, detail="my posts is only available for uploaders")
             take = int(payload.get("take", 50))
             skip = int(payload.get("skip", 0))
             take = max(1, min(take, 100))

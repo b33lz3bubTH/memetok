@@ -20,6 +20,12 @@ class JwksCache:
     expires_at: float = 0.0
 
 
+@dataclass
+class AuthClaims:
+    user_id: str
+    email: str | None = None
+
+
 _cache = JwksCache()
 
 
@@ -40,9 +46,9 @@ async def _get_jwks() -> Dict[str, Any]:
     return jwks
 
 
-async def verify_clerk_bearer_token(token: str) -> str:
+async def verify_clerk_bearer_token(token: str) -> AuthClaims:
     if settings.auth_disabled:
-        return "dev-user"
+        return AuthClaims(user_id="dev-user", email="dev-uploader@example.com")
 
     if not settings.clerk_issuer:
         raise AuthError("CLERK_ISSUER not configured")
@@ -78,5 +84,13 @@ async def verify_clerk_bearer_token(token: str) -> str:
     sub = claims.get("sub")
     if not sub:
         raise AuthError("missing sub")
-    return str(sub)
 
+    email = claims.get("email")
+    if not email:
+        maybe_emails = claims.get("email_addresses") or []
+        if isinstance(maybe_emails, list) and maybe_emails:
+            first = maybe_emails[0] or {}
+            if isinstance(first, dict):
+                email = first.get("email_address")
+
+    return AuthClaims(user_id=str(sub), email=str(email).lower() if email else None)

@@ -10,6 +10,7 @@ import UserProfile from "./pages/UserProfile";
 import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
 import UploaderPortal from "./pages/UploaderPortal";
+import SuperAdmin from "./pages/SuperAdmin";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/post/:postId" element={<PostPage />} />
               <Route path="/upload" element={<UploaderPortal />} />
               <Route path="/uploader" element={<Navigate to="/upload" replace />} />
+              <Route path="/super-admin" element={<SuperAdmin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

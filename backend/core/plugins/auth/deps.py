@@ -17,12 +17,12 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
 
     token = authorization.split(" ", 1)[1].strip()
     try:
-        user_id = await verify_clerk_bearer_token(token)
+        claims = await verify_clerk_bearer_token(token)
     except AuthError as e:
         logger.info("auth invalid token err=%s", str(e))
         raise HTTPException(status_code=401, detail=str(e)) from e
-    logger.info("auth ok user_id=%s", user_id)
-    return AuthUser(user_id=user_id)
+    logger.info("auth ok user_id=%s", claims.user_id)
+    return AuthUser(user_id=claims.user_id, email=claims.email)
 
 
 CurrentUser = Depends(get_current_user)
