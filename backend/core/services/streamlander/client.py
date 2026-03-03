@@ -18,7 +18,7 @@ class StreamlanderClient:
         files = {"file": (filename, data, content_type)}
         async with httpx.AsyncClient(timeout=1600.0) as client:  # Increased timeout for large files
             try:
-                resp = await client.post(url, files=files)
+                resp = await client.post(url, headers={"X-API-KEY": settings.streamlander_api_key}, files=files)
                 resp.raise_for_status()
                 return resp.json()
             except httpx.HTTPStatusError as e:

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     mongo_db: str = "memetok"
 
     streamlander_base_url: str = "http://localhost:8080"
+    streamlander_api_key: str = "your_default_api_key_here"
 
     auth_disabled: bool = True
     clerk_issuer: str = ""
