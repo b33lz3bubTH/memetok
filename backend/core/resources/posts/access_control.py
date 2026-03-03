@@ -15,15 +15,16 @@ class AccessControlService:
         # but we could add an ensure_indexes to UploaderRepository
         pass
 
-    async def validate_uploader(self, user_id: str, email: str, api_key: str) -> bool:
-        if not email or not api_key:
+    async def validate_uploader(self, email: str, api_key: str) -> bool:
+        if not api_key or not email:
             return False
-        return await self.uploader_service.validate_api_key(email=email, api_key=api_key, user_id=user_id)
+        return await self.uploader_service.validate_api_key(api_key=api_key, email=email)
 
-    async def is_uploader_user(self, user_id: str) -> bool:
-        # We need a method in UploaderService for this
-        uploader_data = await self.uploader_service.repository.find_by_user_id(user_id)
-        return uploader_data is not None
+    async def is_uploader_user(self, email: Optional[str]) -> bool:
+        if not email:
+            return False
+        uploader = await self.uploader_service.get_uploader_by_email(email)
+        return uploader is not None
 
 
 _access_service = AccessControlService()

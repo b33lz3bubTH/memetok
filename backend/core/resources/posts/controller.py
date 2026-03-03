@@ -65,6 +65,7 @@ async def upload_and_create_post(
     tags: str = Form(default=""),
     username: str | None = Form(default=None),
     profilePhoto: str | None = Form(default=None),
+    email: str = Form(default=""),
     x_api_key: str = Header(default=None, alias="X-API-KEY"),
     authorization: str | None = Header(default=None),
 ):
@@ -80,14 +81,15 @@ async def upload_and_create_post(
     if not x_api_key:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
+    valid_email = email or claims.email or ""
+
     access_service = get_access_control_service()
     allowed = await access_service.validate_uploader(
-        user_id=claims.user_id,
-        email=claims.email or "",
+        email=valid_email,
         api_key=x_api_key,
     )
     if not allowed:
-        logger.info("upload denied for user_id=%s email=%s", claims.user_id, claims.email)
+        logger.info("upload denied for user_id=%s email=%s", claims.user_id, valid_email)
         raise HTTPException(status_code=403, detail="Uploader access denied")
 
     if not files:

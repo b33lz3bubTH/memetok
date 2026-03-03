@@ -45,7 +45,6 @@ class Uploader:
     email: str
     status: str = "active"  # active, inactive
     name: Optional[str] = None
-    userId: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     def to_dict(self):
@@ -54,7 +53,6 @@ class Uploader:
             "email": self.email,
             "status": self.status,
             "name": self.name,
-            "userId": self.userId,
             "createdAt": self.created_at
         }
 
@@ -65,6 +63,5 @@ class Uploader:
             email=data.get("email"),
             status=data.get("status", "active"),
             name=data.get("name"),
-            userId=data.get("userId"),
             created_at=data.get("createdAt")
         )

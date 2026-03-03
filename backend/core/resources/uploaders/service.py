@@ -62,11 +62,14 @@ class UploaderService:
         items = await self.repository.list_all()
         return [Uploader.from_dict(item) for item in items]
 
-    async def validate_api_key(self, email: str, api_key: str, user_id: Optional[str] = None) -> bool:
+    async def validate_api_key(self, api_key: str, email: str) -> bool:
+        if not email:
+            return False
+            
         uploader_data = await self.repository.find_by_email(email)
         if not uploader_data:
             return False
-        
+            
         uploader = Uploader.from_dict(uploader_data)
         if uploader.status != "active":
             return False
@@ -79,9 +82,6 @@ class UploaderService:
         key = ApiKey.from_dict(key_data)
         if key.uploader_id != uploader.id:
             return False
-        
-        if user_id:
-            await self.repository.bind_user_id(uploader.id, user_id)
             
         return True
 

@@ -68,12 +68,6 @@ export default function SuperAdmin() {
   };
 
   const onRegenerateKey = async (uploaderId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to revoke the old key and generate a new one?",
-      )
-    )
-      return;
     try {
       setError(null);
       const res = await superAdminApi.createApiKey(uploaderId);
@@ -189,27 +183,16 @@ export default function SuperAdmin() {
                         )}
                       </div>
                       <div className="text-xs text-white/30 flex items-center gap-2">
-                        {uploader.userId ? (
-                          <span>
-                            Bound to:{" "}
-                            <code className="text-white/50">
-                              {uploader.userId}
-                            </code>
-                          </span>
-                        ) : (
-                          <span className="italic text-amber-500/50">
-                            Awaiting user ID binding
-                          </span>
-                        )}
+                        {/* Status is shown in the name line */}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => onRegenerateKey(uploader.id)}
-                        title="Regenerate API Key"
-                        className="p-2 rounded-lg bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-bold text-white/40 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2 border border-white/5 active:scale-95"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <Key className="w-3.5 h-3.5" />
+                        Regenerate Key
                       </button>
                     </div>
                   </div>

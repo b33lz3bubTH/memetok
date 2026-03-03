@@ -38,7 +38,7 @@ export type SuperAdminUploader = {
   id: string;
   email: string;
   isActive: boolean;
-  userId?: string;
+  apiKey?: string;
 };
 
 export type SuperAdminApiKey = {
@@ -54,7 +54,7 @@ export const media = {
   async uploadWithProgress(
     files: File[],
     opts?: { onProgress?: (pct: number) => void; signal?: AbortSignal },
-    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; userId: string },
+    metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; email: string },
     optsAuth?: { token?: string; uploaderApiKey?: string }
   ): Promise<Post> {
     return await new Promise((resolve, reject) => {
@@ -107,7 +107,7 @@ export const media = {
         fd.append('tags', metadata.tags.join(','));
         if (metadata.username) fd.append('username', metadata.username);
         if (metadata.profilePhoto) fd.append('profilePhoto', metadata.profilePhoto);
-        fd.append('user_id', metadata.userId);
+        fd.append('email', metadata.email);
       }
       xhr.send(fd);
     });
@@ -140,8 +140,7 @@ export const superAdminApi = {
       items: res.items.map((i: any) => ({
         id: i.id,
         email: i.email,
-        isActive: i.status === 'active',
-        userId: i.userId
+        isActive: i.status === 'active'
       }))
     };
   },
@@ -151,7 +150,7 @@ export const superAdminApi = {
       id: res.id,
       email: res.email,
       isActive: res.status === 'active',
-      userId: res.userId
+      apiKey: res.apiKey
     };
   },
   async listApiKeys(): Promise<{ items: SuperAdminApiKey[] }> {

@@ -51,8 +51,9 @@ def register_posts_handlers(svc: PostsService) -> None:
             user_id = str(payload.get("userId", ""))
             if not user_id:
                 raise HTTPException(status_code=400, detail="userId is required")
+            email = auth.get("user").email if auth.get("user") else None
             access_service = get_access_control_service()
-            is_uploader = await access_service.is_uploader_user(user_id)
+            is_uploader = await access_service.is_uploader_user(email)
             if not is_uploader:
                 raise HTTPException(status_code=403, detail="my posts is only available for uploaders")
             take = int(payload.get("take", 50))

@@ -22,10 +22,6 @@ class UploadersRepository:
         mongo = get_mongo()
         return await mongo.db[UPLOADERS_COLLECTION].find_one({"id": uploader_id})
 
-    async def find_by_user_id(self, user_id: str) -> Optional[Dict[str, Any]]:
-        mongo = get_mongo()
-        return await mongo.db[UPLOADERS_COLLECTION].find_one({"userId": user_id})
-
     async def list_all(self) -> List[Dict[str, Any]]:
         mongo = get_mongo()
         cursor = mongo.db[UPLOADERS_COLLECTION].find({}).sort("createdAt", -1)
@@ -38,10 +34,6 @@ class UploadersRepository:
     async def update_status(self, uploader_id: str, status: str) -> None:
         mongo = get_mongo()
         await mongo.db[UPLOADERS_COLLECTION].update_one({"id": uploader_id}, {"$set": {"status": status}})
-
-    async def bind_user_id(self, uploader_id: str, user_id: str) -> None:
-        mongo = get_mongo()
-        await mongo.db[UPLOADERS_COLLECTION].update_one({"id": uploader_id}, {"$set": {"userId": user_id}})
 
     async def delete(self, uploader_id: str) -> None:
         mongo = get_mongo()

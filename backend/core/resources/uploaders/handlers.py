@@ -42,7 +42,6 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
                         "email": i.email,
                         "name": i.name,
                         "status": i.status,
-                        "userId": i.userId,
                         "createdAt": i.created_at.isoformat()
                     } for i in items
                 ],
@@ -56,14 +55,10 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
         email = str(payload.get("email", ""))
         api_key = str(payload.get("apiKey", ""))
         
-        auth = payload.get("__auth", {})
-        user = auth.get("user") if isinstance(auth, dict) else None
-        user_id = user.user_id if user else None
-        
         if not email or not api_key:
             raise HTTPException(status_code=400, detail="email and apiKey are required")
         
-        is_valid = await svc.validate_api_key(email, api_key, user_id=user_id)
+        is_valid = await svc.validate_api_key(api_key=api_key, email=email)
         return {"isValid": is_valid}
 
     async def handle_create_uploader(payload: Dict[str, Any]) -> Dict[str, Any]:
