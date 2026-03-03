@@ -75,6 +75,9 @@ async def lifespan(app: FastAPI):
     register_posts_handlers(posts_service)
     logger.info("posts handlers registered")
 
+    # cleanup any dangling posts from previous crashes
+    await posts_service.cleanup_dangling_posts(older_than_minutes=60)
+
     uploader_service = UploaderService()
     register_uploaders_handlers(uploader_service)
     logger.info("uploader handlers registered")

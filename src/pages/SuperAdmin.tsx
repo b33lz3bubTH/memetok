@@ -25,7 +25,6 @@ export default function SuperAdmin() {
       // If unauthorized, clear auth
       if ((e as Error).message.includes("unauthorized")) {
         setIsAuthenticated(false);
-        sessionStorage.removeItem("superAdminKey");
       }
     } finally {
       setLoading(false);
@@ -33,11 +32,8 @@ export default function SuperAdmin() {
   };
 
   useEffect(() => {
-    const savedKey = sessionStorage.getItem("superAdminKey");
-    if (savedKey) {
-      superAdminApi.setAdminKey(savedKey);
-      setIsAuthenticated(true);
-    }
+    // Intentionally not restoring from sessionStorage for security.
+    // The user must authenticate per explicit tab load.
   }, []);
 
   useEffect(() => {
@@ -48,7 +44,6 @@ export default function SuperAdmin() {
 
   const onAuthSuccess = (key: string) => {
     superAdminApi.setAdminKey(key);
-    sessionStorage.setItem("superAdminKey", key);
     setIsAuthenticated(true);
   };
 

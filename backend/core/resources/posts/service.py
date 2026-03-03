@@ -132,19 +132,59 @@ class PostsService:
         if not post:
             raise PostNotFoundError()
 
+        # Sanitize comment text: strip control chars, enforce max length
+        sanitized = "".join(ch for ch in text if ch >= " " or ch in "\n").strip()[:300]
+        if not sanitized:
+            raise ValueError("Comment text cannot be empty after sanitization")
+
         now = now_utc()
         comment_id = str(uuid4())
         doc = {
             "id": comment_id,
             "postId": post_id,
             "userId": user_id,
-            "text": text,
+            "text": sanitized,
             "firstName": first_name,
             "createdAt": now,
         }
         await self.comments_repo.insert(doc)
         await self.posts_repo.inc_counts(post_id=post_id, comments_delta=1)
         return CommentDTO.model_validate(doc)
+
+    async def delete_post(self, post_id: str, requesting_user_id: str) -> None:
+        """Soft-delete a post. Only the owner can delete their own post."""
+        post = await self.posts_repo.find_by_id(post_id)
+        if not post:
+            raise PostNotFoundError()
+        if post.get("author", {}).get("userId") != requesting_user_id:
+            raise PermissionError("You can only delete your own posts")
+        await self.posts_repo.soft_delete(post_id)
+        logger.info("post soft-deleted post_id=%s user_id=%s", post_id, requesting_user_id)
+
+    async def search_posts(self, query: str, take: int, skip: int) -> List[PostListDTO]:
+        """Search posts by text across caption, description and tags."""
+        if not query or not query.strip():
+            return []
+        docs = await self.posts_repo.search(query=query.strip(), take=take, skip=skip)
+        return [PostListDTO.model_validate(d) for d in docs]
+
+    async def cleanup_dangling_posts(self, older_than_minutes: int = 60) -> int:
+        """Mark as 'failed' any posts that have been pending for too long (upload never completed)."""
+        from datetime import timedelta
+        threshold = now_utc() - timedelta(minutes=older_than_minutes)
+        mongo_client = self.posts_repo  # access via repo method
+        # We do a direct update via the repository's set_status through a find query
+        from database.mongo_factory import get_mongo
+        from core.resources.posts.constants import POSTS_COLLECTION
+        mongo = get_mongo()
+        result = await mongo.db[POSTS_COLLECTION].update_many(
+            {"status": "pending", "createdAt": {"$lt": threshold}},
+            {"$set": {"status": "failed"}},
+        )
+        count = result.modified_count
+        if count:
+            logger.info("cleanup_dangling_posts marked %d posts as failed", count)
+        return count
 
     async def list_comments(self, post_id: str, take: int, skip: int) -> List[CommentDTO]:
         post = await self.posts_repo.find_by_id(post_id)

@@ -10,9 +10,11 @@ class PostsQueryAction(str, Enum):
     GET_POST_STATS = "get_post_stats"
     LIST_COMMENTS = "list_comments"
     LIST_SAVED_POSTS = "list_saved_posts"
+    SEARCH_POSTS = "search_posts"
 
 
 class PostsMutationAction(str, Enum):
     TOGGLE_LIKE = "toggle_like"
     ADD_COMMENT = "add_comment"
     TOGGLE_SAVE_POST = "toggle_save_post"
+    DELETE_POST = "delete_post"

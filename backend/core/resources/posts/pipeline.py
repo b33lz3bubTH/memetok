@@ -53,12 +53,15 @@ class UploadPipeline:
             media_type = file_info["media_type"]
             
             try:
+                def _hash_file(path: str) -> str:
+                    h = hashlib.md5()
+                    with open(path, "rb") as f:
+                        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                            h.update(chunk)
+                    return h.hexdigest()
+
                 file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
-                hasher = hashlib.md5()
-                with open(file_path, "rb") as hash_file:
-                    for chunk in iter(lambda: hash_file.read(1024 * 1024), b""):
-                        hasher.update(chunk)
-                file_hash = hasher.hexdigest()
+                file_hash = await asyncio.to_thread(_hash_file, file_path)
 
                 logger.info("uploading to streamlander post_id=%s filename=%s size=%d", context.post_id, filename, file_size)
 
@@ -81,11 +84,13 @@ class UploadPipeline:
                 file_hash = None
                 try:
                     if os.path.exists(file_path):
-                        with open(file_path, "rb") as f:
-                            hasher = hashlib.md5()
-                            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                                hasher.update(chunk)
-                            file_hash = hasher.hexdigest()
+                        def _hash_err(path: str) -> str:
+                            h = hashlib.md5()
+                            with open(path, "rb") as f:
+                                for ch in iter(lambda: f.read(1024 * 1024), b""):
+                                    h.update(ch)
+                            return h.hexdigest()
+                        file_hash = await asyncio.to_thread(_hash_err, file_path)
                 except Exception:
                     pass
                 context.errors.append({

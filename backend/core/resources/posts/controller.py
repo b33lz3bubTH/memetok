@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+import time
+from collections import defaultdict
 from pathlib import Path
 from typing import List
 from uuid import uuid4
@@ -24,6 +26,43 @@ logger = get_logger(__name__)
 _UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024  # 1MB
 _MAX_FILE_BYTES = settings.upload_max_file_size_mb * 1024 * 1024
 _UPLOAD_INGEST_SEMAPHORE = asyncio.Semaphore(max(1, settings.upload_ingest_concurrency))
+
+
+class UploadRateLimiter:
+    def __init__(self, max_requests: int, window_seconds: int):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.uploads: defaultdict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, client_id: str) -> bool:
+        now = time.time()
+        self.uploads[client_id] = [t for t in self.uploads[client_id] if now - t < self.window_seconds]
+        if len(self.uploads[client_id]) >= self.max_requests:
+            return False
+        self.uploads[client_id].append(now)
+        return True
+
+
+_upload_limiter = UploadRateLimiter(max_requests=5, window_seconds=3600)  # 5 uploads per hour
+
+
+def _is_valid_magic_bytes(file_path: Path, expected_type: str) -> bool:
+    try:
+        with open(file_path, "rb") as f:
+            magic = f.read(12)
+        if not magic:
+            return False
+        if expected_type == "video":
+            return b"ftyp" in magic
+        elif expected_type == "image":
+            return (
+                magic.startswith(b"\xff\xd8") or
+                magic.startswith(b"\x89PNG") or
+                magic.startswith(b"GIF")
+            )
+        return False
+    except IOError:
+        return False
 
 
 def _get_posts_service() -> PostsService:
@@ -92,6 +131,9 @@ async def upload_and_create_post(
         logger.info("upload denied for user_id=%s email=%s", claims.user_id, valid_email)
         raise HTTPException(status_code=403, detail="Uploader access denied")
 
+    if not _upload_limiter.is_allowed(claims.user_id):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
+
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required")
     if len(files) > settings.upload_max_files:
@@ -151,6 +193,12 @@ async def upload_and_create_post(
 
             try:
                 size = await _persist_upload_file(file, file_path)
+                
+                # Validate actual file magic bytes to prevent spoofing
+                if not _is_valid_magic_bytes(file_path, media_type):
+                    file_path.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail=f"File {filename} content does not match extension")
+
                 file_infos.append(
                     {
                         "path": str(file_path),

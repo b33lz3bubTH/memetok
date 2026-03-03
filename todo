@@ -96,7 +96,7 @@ SECTION 1: BUGS TO FIX
     cards. OR switch to IntersectionObserver on the scroll container with a
     sentinel element at the bottom instead of observing each card.
 
-[ ] 13. UPLOAD PIPELINE DOES NOT CLEAN UP ON FAILED POST DB INSERT (controller.py)
+[x] 13. UPLOAD PIPELINE DOES NOT CLEAN UP ON FAILED POST DB INSERT (controller.py)
     Problem: If `_svc.create_post(...)` succeeds but the pipeline enqueue fails
     (or if the Streamlander upload fails entirely), the post document remains in
     MongoDB with status="pending" and no media forever. There is no cleanup or
@@ -104,14 +104,14 @@ SECTION 1: BUGS TO FIX
     Fix: Add a background cleanup job that deletes or marks as "failed" any post
     older than N minutes that is still in "pending" status.
 
-[ ] 14. NO DELETE POST FUNCTIONALITY
+[x] 14. NO DELETE POST FUNCTIONALITY
     Problem: Uploaders currently have no way to delete a post they uploaded.
     There is no `DELETE /posts/:id` handler registered in the handlers or in
     `PostsMutationAction`.
     Fix: Add a DELETE handler and endpoint that verifies the requesting uploader
     owns the post, removes it from MongoDB and cleans up media from Streamlander.
 
-[ ] 15. SUPERADMIN KEY STORED IN sessionStorage (SuperAdmin.tsx)
+[x] 15. SUPERADMIN KEY STORED IN sessionStorage (SuperAdmin.tsx)
     Problem: `sessionStorage.setItem("superAdminKey", key)` stores the plaintext
     super admin key in browser storage. This persists across tabs in the same
     session and is accessible via XSS.
@@ -129,14 +129,14 @@ SECTION 1: BUGS TO FIX
 SECTION 2: SECURITY HARDENING
 ────────────────────────────────────────────────────────────────────────────────
 
-[ ] 17. RATE LIMIT UPLOAD ENDPOINT
+[x] 17. RATE LIMIT UPLOAD ENDPOINT
     Problem: `/api/posts/upload` has no rate limiting beyond the Semaphore of 1
     concurrent ingest per-process. A malicious uploader can spam uploads.
     Fix: Add per-uploader rate limiting (e.g. 5 uploads/hour using a Redis
     counter or simple in-memory dict keyed by uploader_id). Return 429 when
     exceeded.
 
-[ ] 18. VALIDATE FILE MAGIC BYTES NOT JUST EXTENSION/CONTENT-TYPE
+[x] 18. VALIDATE FILE MAGIC BYTES NOT JUST EXTENSION/CONTENT-TYPE
     Problem: `is_video` is determined by `content_type == "video/mp4"` or
     filename ends with `.mp4`. Both are trivially spoofed by a client.
     Fix: After saving to tmp, check the actual file magic bytes (first 12 bytes)
@@ -149,7 +149,7 @@ SECTION 2: SECURITY HARDENING
     Fix: Extract `userId` ONLY from the verified Clerk JWT via `__auth`,
     never from the raw payload.
 
-[ ] 20. NO INPUT SANITIZATION ON COMMENT TEXT
+[x] 20. NO INPUT SANITIZATION ON COMMENT TEXT
     Problem: Comment text is stored and displayed as-is. While React escapes
     HTML by default, URLs and other content in comments are not validated.
     Fix: Strip control characters and limit to sensible Unicode ranges.
@@ -159,7 +159,7 @@ SECTION 2: SECURITY HARDENING
 SECTION 3: PERFORMANCE IMPROVEMENTS (non-cache)
 ────────────────────────────────────────────────────────────────────────────────
 
-[ ] 21. ADD MONGODB INDEXES
+[x] 21. ADD MONGODB INDEXES
     The following queries run without confirmed indexes:
     - `posts.find({"status": "posted"})` → needs compound index on {status: 1, createdAt: -1}
     - `posts.find({"author.userId": uid})` → needs index on {author.userId: 1}
@@ -194,7 +194,7 @@ SECTION 3: PERFORMANCE IMPROVEMENTS (non-cache)
     Fix: Raise `initialPostsToFetch` to 5–7 for the first render, and keep
     `postsPerPage` at 3 for subsequent loads.
 
-[ ] 26. STREAMLANDER UPLOAD IS SYNCHRONOUS IN PIPELINE (pipeline.py)
+[x] 26. STREAMLANDER UPLOAD IS SYNCHRONOUS IN PIPELINE (pipeline.py)
     The pipeline uploads to Streamlander and THEN updates the post status.
     There is no timeout on the Streamlander upload call. A slow/stuck upload
     will hang the pipeline worker indefinitely.
@@ -211,7 +211,7 @@ SECTION 3: PERFORMANCE IMPROVEMENTS (non-cache)
 SECTION 4: MISSING FEATURES TO ADD
 ────────────────────────────────────────────────────────────────────────────────
 
-[ ] 28. SEARCH / HASHTAG DISCOVERY
+[x] 28. SEARCH / HASHTAG DISCOVERY
     Users can't search by tag or keyword. Tags are stored but never queried.
     Add a search bar that queries a `GET /posts/search?q=memes&tag=cats`
     endpoint backed by a MongoDB text index on `caption`, `description`, `tags`.
@@ -224,7 +224,7 @@ SECTION 4: MISSING FEATURES TO ADD
     views-over-time, like-rate, and top-performing posts by calling the
     analytics microservice `/analytics` endpoint.
 
-[ ] 30. POST DELETE / UNPUBLISH FOR UPLOADERS
+[x] 30. POST DELETE / UNPUBLISH FOR UPLOADERS
     As noted in Bug #14, there is no delete or unpublish mechanism.
     Add a delete button in the UploaderPortal / UserProfile "My Posts" grid
     that calls a soft-delete endpoint (set status to "deleted").
@@ -315,7 +315,7 @@ SECTION 5: CODE QUALITY & TECH DEBT
     Fix: Define proper response DTOs and make the execute function generic-typed
     against them.
 
-[ ] 45. ANALYTICS MICROSERVICE NOT INTEGRATED IN FRONTEND
+[-] 45. ANALYTICS MICROSERVICE NOT INTEGRATED IN FRONTEND (SKIPPED PER USER)
     The Go analytics service is running (events endpoint, rate limiter,
     middleware) but there is no call to it from the frontend for events like
     "post_view", "post_like", "post_comment", "share".

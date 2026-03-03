@@ -181,6 +181,42 @@ def register_posts_handlers(svc: PostsService) -> None:
         except PostNotFoundError as e:
             logger.info("add_comment not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
+            
+    async def handle_search_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            query = str(payload.get("query", ""))
+            take = int(payload.get("take", 20))
+            skip = int(payload.get("skip", 0))
+            take = max(1, min(take, 50))
+            skip = max(0, skip)
+            logger.info("search_posts query=%r take=%s skip=%s", query, take, skip)
+            items = await svc.search_posts(query=query, take=take, skip=skip)
+            return {"items": [i.model_dump() for i in items], "take": take, "skip": skip}
+        except PyMongoError as e:
+            logger.exception("search_posts db error")
+            raise HTTPException(status_code=503, detail="db unavailable") from e
+
+    async def handle_delete_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            post_id = str(payload.get("postId", ""))
+            if not post_id:
+                raise HTTPException(status_code=400, detail="postId is required")
+
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else ""
+            if not user_id:
+                raise HTTPException(status_code=401, detail="authentication required")
+
+            logger.info("delete_post post_id=%s user_id=%s", post_id, user_id)
+            await svc.delete_post(post_id=post_id, requesting_user_id=user_id)
+            return {"postId": post_id, "deleted": True}
+        except PostNotFoundError as e:
+            logger.info("delete_post not found post_id=%s", post_id)
+            raise HTTPException(status_code=404, detail="post not found") from e
+        except PermissionError as e:
+            logger.warning("delete_post forbidden post_id=%s user_id=%s", post_id, user_id)
+            raise HTTPException(status_code=403, detail=str(e)) from e
 
     query_registry.register(PostsQueryAction.LIST_POSTS, handle_list_posts)
     query_registry.register(PostsQueryAction.GET_POST, handle_get_post)
@@ -188,7 +224,9 @@ def register_posts_handlers(svc: PostsService) -> None:
     query_registry.register(PostsQueryAction.GET_POST_STATS, handle_get_post_stats)
     query_registry.register(PostsQueryAction.LIST_COMMENTS, handle_list_comments)
     query_registry.register(PostsQueryAction.LIST_SAVED_POSTS, handle_list_saved_posts)
+    query_registry.register(PostsQueryAction.SEARCH_POSTS, handle_search_posts)
 
     mutation_registry.register(PostsMutationAction.TOGGLE_LIKE, handle_toggle_like)
     mutation_registry.register(PostsMutationAction.ADD_COMMENT, handle_add_comment)
     mutation_registry.register(PostsMutationAction.TOGGLE_SAVE_POST, handle_toggle_save_post)
+    mutation_registry.register(PostsMutationAction.DELETE_POST, handle_delete_post)
