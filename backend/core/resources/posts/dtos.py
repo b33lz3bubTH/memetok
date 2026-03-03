@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,8 @@ class PostDTO(BaseModel):
     createdAt: datetime
     author: AuthorDTO
     stats: Optional[StatsDTO] = None
+    likedByUser: bool = False
+    savedByUser: bool = False
 
 
 class PostStatsDTO(BaseModel):
@@ -60,6 +62,9 @@ class PostListDTO(BaseModel):
     status: Literal["pending", "posted"]
     createdAt: datetime
     author: AuthorDTO
+    stats: Optional[StatsDTO] = None
+    likedByUser: bool = False
+    savedByUser: bool = False
 
 
 class ListPostsResponse(BaseModel):
@@ -97,4 +102,3 @@ class ToggleLikeResponse(BaseModel):
     postId: str
     liked: bool
     likes: int
-

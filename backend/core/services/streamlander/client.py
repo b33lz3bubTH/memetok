@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, BinaryIO, Dict
 
 import httpx
 
@@ -11,7 +11,7 @@ class StreamlanderClient:
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or settings.streamlander_base_url).rstrip("/")
 
-    async def upload(self, filename: str, content_type: str, data: bytes) -> Dict[str, Any]:
+    async def upload(self, filename: str, content_type: str, data: bytes | BinaryIO) -> Dict[str, Any]:
         url = f"{self._base_url}/upload"
         # httpx accepts bytes directly in tuple format: (filename, bytes, content_type)
         # This is the recommended way per httpx documentation

@@ -8,14 +8,14 @@ Generated: 2026-03-03
 SECTION 1: BUGS TO FIX
 ────────────────────────────────────────────────────────────────────────────────
 
-[ ] 1. SAVE STATE NOT PERSISTED ON LOAD (VideoSidebar.tsx)
+[x] 1. SAVE STATE NOT PERSISTED ON LOAD (VideoSidebar.tsx)
     Problem: `isSaved` is local useState that starts as `false` always. When the
     user already saved a post and scrolls back, the bookmark icon reverts to
     unsaved state. The toggle endpoint works but the read state is never loaded.
     Fix: Add a `GET /posts/:id/saved` endpoint or return `savedByUser` flag in
     the post feed response, and initialize `isSaved` from it.
 
-[ ] 2. LIKED STATE NOT PERSISTED ACROSS SESSIONS (feedSlice.ts)
+[x] 2. LIKED STATE NOT PERSISTED ACROSS SESSIONS (feedSlice.ts)
     Problem: `likedVideos[]` in Redux is in-memory only. Refreshing the page
     clears all liked state. The like count comes from the server (correct), but
     the heart icon state resets.
@@ -23,7 +23,7 @@ SECTION 1: BUGS TO FIX
     `likedByUser: bool` in each post's feed response so the UI can pre-populate
     `likedVideos[]`.
 
-[ ] 3. STATS LOADED PER-CARD CAUSING N+1 REQUESTS (VideoSidebar.tsx)
+[x] 3. STATS LOADED PER-CARD CAUSING N+1 REQUESTS (VideoSidebar.tsx)
     Problem: Every VideoCard/VideoSidebar component calls `fetchPostStats(video.id)`
     independently on mount via `useEffect`. With 10 visible posts, that's 10
     separate stats API requests on every feed load.
@@ -31,27 +31,27 @@ SECTION 1: BUGS TO FIX
     (remove `{\"stats\": 0}` projection from `find_latest_posted`). The `stats`
     field already lives on the post document. Eliminate the per-card stat fetch.
 
-[ ] 4. SAVED POSTS FETCHED ONE-BY-ONE (service.py)
+[x] 4. SAVED POSTS FETCHED ONE-BY-ONE (service.py)
     Problem: `list_saved_posts()` in PostsService iterates post_ids and calls
     `posts_repo.find_by_id()` for EACH one — classic N+1.
     Fix: Add `find_by_ids(post_ids: List[str])` to PostsRepository using
     `{\"id\": {\"$in\": post_ids}}` and batch-fetch all saved posts in one query.
 
-[ ] 5. PIPELINE READS ENTIRE FILE INTO MEMORY (pipeline.py)
+[x] 5. PIPELINE READS ENTIRE FILE INTO MEMORY (pipeline.py)
     Problem: `_process_upload()` reads the full file into memory with
     `file_content = f.read()`, then uploads it. For large videos this doubles
     RAM usage: once on disk, once in memory.
     Fix: Stream the file to Streamlander using chunked reading or multipart
     streaming, avoiding the full in-memory buffer.
 
-[ ] 6. PIPELINE WORKERS NOT STARTED (api/index.py)
+[x] 6. PIPELINE WORKERS NOT STARTED (api/index.py)
     Problem: `pipeline.start_workers(num_workers=2)` is NEVER called in the
     lifespan. The pipeline object is created via `get_shared_pipeline()`, but
     its workers are never launched and `pipeline.enqueue(context)` puts items
     in a queue that nobody processes.
     Fix: Add `pipeline.start_workers()` call inside the lifespan startup block.
 
-[ ] 7. UPLOADER DEACTIVATION NOT ENFORCED AT LIKE/COMMENT/SAVE LEVEL
+[x] 7. UPLOADER DEACTIVATION NOT ENFORCED AT LIKE/COMMENT/SAVE LEVEL
     Problem: `toggle_like`, `add_comment`, `toggle_save_post` accept any
     `userId` string with no auth check whatsoever—handlers just trust the
     payload. Any client can forge a `userId` and like/comment as anyone.
@@ -59,28 +59,28 @@ SECTION 1: BUGS TO FIX
     verify `__auth` header is present and extract userId from the token, not
     from the raw payload.
 
-[ ] 8. COMMENT "REPLY" AND "LIKE" BUTTONS ARE NON-FUNCTIONAL (CommentDrawer.tsx)
+[x] 8. COMMENT "REPLY" AND "LIKE" BUTTONS ARE NON-FUNCTIONAL (CommentDrawer.tsx)
     Problem: Comment heart icon and "Reply" button are rendered but do nothing.
     They have no onClick handlers. Users see interactive-looking buttons that
     are dead.
     Fix: Either wire them up to real endpoints, or hide them until the feature
     is implemented (don't show fake affordances).
 
-[ ] 9. FEED LOAD-MORE THRESHOLD IS WRONG (VideoFeed.tsx)
+[x] 9. FEED LOAD-MORE THRESHOLD IS WRONG (VideoFeed.tsx)
     Problem: `const threshold = videos.length - 1;` triggers loadMore only when
     AT the very last video. With `postsPerPage = 3`, there is no buffer — the
     user hits a dead end before the next batch arrives.
     Fix: Use `videos.length - 2` or `videos.length - 3` to pre-fetch before
     the user reaches the end.
 
-[ ] 10. API CLIENT TOKEN IS GLOBAL MUTABLE STATE (api-client.ts)
+[x] 10. API CLIENT TOKEN IS GLOBAL MUTABLE STATE (api-client.ts)
     Problem: `apiClient.setToken(token)` mutates a singleton's token field.
     If two concurrent requests are made (e.g. toggleLike + addComment), they may
     share a stale or wrong token.
     Fix: Pass the token per-request via request headers instead of storing it
     globally on the `ApiClient` instance. Or create request-scoped headers.
 
-[ ] 11. UPLOADER CREATE SILENTLY RETURNS EXISTING WITHOUT NEW API KEY (service.py)
+[x] 11. UPLOADER CREATE SILENTLY RETURNS EXISTING WITHOUT NEW API KEY (service.py)
     Problem: `create_uploader()` returns `(existing_uploader, None)` if the
     email already exists. The SuperAdmin page then shows no API key in the toast,
     confusing the admin who may think it worked.
@@ -303,13 +303,13 @@ SECTION 4: MISSING FEATURES TO ADD
 SECTION 5: CODE QUALITY & TECH DEBT
 ────────────────────────────────────────────────────────────────────────────────
 
-[ ] 43. CONSOLE.LOG STATEMENTS LEFT IN PRODUCTION (VideoCard.tsx)
+[x] 43. CONSOLE.LOG STATEMENTS LEFT IN PRODUCTION (VideoCard.tsx)
     Multiple `console.log` calls are in VideoCard.tsx (play attempts, buffer
     progress, etc.) that pollute the browser console in production.
     Fix: Remove or replace with a proper debug logger controlled by a
     `VITE_DEBUG=true` env flag.
 
-[ ] 44. TYPE SAFETY ON BACKEND API RESPONSES IS `any` (api-client.ts)
+[x] 44. TYPE SAFETY ON BACKEND API RESPONSES IS `any` (api-client.ts)
     Most `execute<any>` or `execute<{ items: any[] }>` calls ignore response
     shape. TypeScript provides no help here.
     Fix: Define proper response DTOs and make the execute function generic-typed
@@ -342,7 +342,7 @@ SECTION 5: CODE QUALITY & TECH DEBT
     Fix: Add pytest tests for backend handlers and vitest tests for frontend
     hooks (useVideoPreload, feedSlice reducers).
 
-[ ] 49. BACKEND PYTHON ENVIRONMENT USES DATETIME.UTCNOW() (uploaders/service.py)
+[x] 49. BACKEND PYTHON ENVIRONMENT USES DATETIME.UTCNOW() (uploaders/service.py)
     `datetime.utcnow()` is deprecated in Python 3.12+. The mongo_common uses
     a `now_utc()` helper but uploaders/service.py calls `datetime.utcnow()`
     directly.
@@ -366,12 +366,12 @@ SECTION 6: INFRASTRUCTURE / DEVOPS
     will show the container as "Up" even if FastAPI is crashing at startup.
     Fix: Add `healthcheck: test: ["CMD", "curl", "-f", "http://localhost:8000/health"]`
 
-[ ] 52. UPLOAD TEMP FILES NOT CLEANED ON SERVER RESTART
+[x] 52. UPLOAD TEMP FILES NOT CLEANED ON SERVER RESTART
     If the server crashes mid-pipeline, temp files under `/tmp/memetok_uploads/`
     accumulate. There is no startup cleanup.
     Fix: On lifespan startup, scan and remove tmp dirs older than 1 hour.
 
-[ ] 53. PIPELINE WORKER COUNT IS HARDCODED TO 2 (pipeline.py)
+[x] 53. PIPELINE WORKER COUNT IS HARDCODED TO 2 (pipeline.py)
     `start_workers(num_workers=2)` is not configurable. For high load, this
     should be tunable.
     Fix: Read `num_workers` from app settings (`settings.pipeline_workers`).

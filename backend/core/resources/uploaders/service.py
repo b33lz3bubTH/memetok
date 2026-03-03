@@ -3,10 +3,10 @@ from __future__ import annotations
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import List, Optional
 
 from core.resources.uploaders.models import Uploader
+from database.mongo_common import now_utc
 from core.resources.uploaders.repositories import UploadersRepository
 from core.resources.uploaders.dtos import UploaderCreateRequest
 
@@ -20,10 +20,10 @@ class UploaderService:
     repository: UploadersRepository = field(default_factory=UploadersRepository)
     api_key_repo: ApiKeysRepository = field(default_factory=ApiKeysRepository)
 
-    async def create_uploader(self, request: UploaderCreateRequest) -> tuple[Uploader, Optional[str]]:
+    async def create_uploader(self, request: UploaderCreateRequest) -> tuple[Uploader, Optional[str], bool]:
         existing = await self.repository.find_by_email(request.email)
         if existing:
-            return Uploader.from_dict(existing), None
+            return Uploader.from_dict(existing), None, True
 
         uploader_id = str(uuid.uuid4())
         uploader = Uploader(
@@ -31,7 +31,7 @@ class UploaderService:
             email=request.email,
             name=request.name,
             status="active",
-            created_at=datetime.utcnow()
+            created_at=now_utc()
         )
         
         await self.repository.insert(uploader.to_dict())
@@ -39,7 +39,7 @@ class UploaderService:
         # Generate initial API key
         raw_key = await self.generate_api_key(uploader_id)
         
-        return uploader, raw_key
+        return uploader, raw_key, False
 
     async def generate_api_key(self, uploader_id: str, name: Optional[str] = None) -> str:
         raw_key = self._generate_raw_key()
@@ -49,7 +49,7 @@ class UploaderService:
             key_hash=self._hash_api_key(raw_key),
             name=name,
             status="active",
-            created_at=datetime.utcnow()
+            created_at=now_utc()
         )
         await self.api_key_repo.insert(api_key.to_dict())
         return raw_key

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { closeCommentDrawer } from "@/store/slices/uiSlice";
-import { X, Heart, Send } from "lucide-react";
+import { X, Send } from "lucide-react";
 import gsap from "gsap";
 import { postsApi, Comment } from "@/lib/api";
 import {
@@ -11,7 +11,7 @@ import {
   useAuth,
   useUser,
 } from "@clerk/clerk-react";
-import { incCommentsCount, fetchPostStats } from "@/store/slices/feedSlice";
+import { incCommentsCount } from "@/store/slices/feedSlice";
 import { cache } from "@/lib/cache";
 
 const CommentDrawer = () => {
@@ -54,9 +54,7 @@ const CommentDrawer = () => {
     setIsLoading(true);
 
     (async () => {
-      dispatch(fetchPostStats(postId));
-
-      let cachedComments = await cache.getComments(postId);
+      const cachedComments = await cache.getComments(postId);
       if (cachedComments.length > 0) {
         setComments(cachedComments);
         setIsLoading(false);
@@ -157,14 +155,6 @@ const CommentDrawer = () => {
                     </span>
                   </div>
                   <p className="text-white/80 text-sm">{comment.text}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <button className="flex items-center gap-1 text-muted-foreground text-xs hover:text-primary transition-colors">
-                      <Heart className="w-4 h-4" />
-                    </button>
-                    <button className="text-muted-foreground text-xs hover:text-primary transition-colors">
-                      Reply
-                    </button>
-                  </div>
                 </div>
               </div>
             ))}

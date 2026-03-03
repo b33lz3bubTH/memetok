@@ -31,7 +31,7 @@ class PostsRepository:
         mongo = get_mongo()
         cursor = (
             mongo.db[POSTS_COLLECTION]
-            .find({"status": POST_STATUS_POSTED}, {"stats": 0})
+            .find({"status": POST_STATUS_POSTED})
             .sort("createdAt", -1)
             .skip(skip)
             .limit(take)
@@ -42,7 +42,7 @@ class PostsRepository:
         mongo = get_mongo()
         cursor = (
             mongo.db[POSTS_COLLECTION]
-            .find({"author.userId": user_id, "status": POST_STATUS_POSTED}, {"stats": 0})
+            .find({"author.userId": user_id, "status": POST_STATUS_POSTED})
             .sort("createdAt", -1)
             .skip(skip)
             .limit(take)
@@ -52,6 +52,14 @@ class PostsRepository:
     async def find_by_id(self, post_id: str) -> Optional[Dict[str, Any]]:
         mongo = get_mongo()
         return await mongo.db[POSTS_COLLECTION].find_one({"id": post_id})
+
+
+    async def find_by_ids(self, post_ids: List[str]) -> List[Dict[str, Any]]:
+        if not post_ids:
+            return []
+        mongo = get_mongo()
+        cursor = mongo.db[POSTS_COLLECTION].find({"id": {"$in": post_ids}})
+        return [d async for d in cursor]
 
     async def set_status(self, post_id: str, status: str) -> None:
         mongo = get_mongo()
@@ -89,6 +97,12 @@ class LikesRepository:
         return True
 
 
+    async def list_liked_post_ids(self, user_id: str, post_ids: List[str]) -> List[str]:
+        if not post_ids:
+            return []
+        mongo = get_mongo()
+        cursor = mongo.db[LIKES_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
+        return [d["postId"] async for d in cursor]
 
 
 @dataclass
@@ -116,6 +130,15 @@ class SavedPostsRepository:
     async def count_saved_posts(self, user_id: str) -> int:
         mongo = get_mongo()
         return await mongo.db[SAVED_POSTS_COLLECTION].count_documents({"userId": user_id})
+
+
+    async def list_saved_post_ids_for_posts(self, user_id: str, post_ids: List[str]) -> List[str]:
+        if not post_ids:
+            return []
+        mongo = get_mongo()
+        cursor = mongo.db[SAVED_POSTS_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
+        return [d["postId"] async for d in cursor]
+
 
 @dataclass
 class CommentsRepository:

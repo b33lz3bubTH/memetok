@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -12,7 +12,7 @@ class ApiKey:
     key_hash: str
     status: str = "active"  # active, revoked
     name: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     revoked_at: Optional[datetime] = None
 
     def to_dict(self):
@@ -45,7 +45,7 @@ class Uploader:
     email: str
     status: str = "active"  # active, inactive
     name: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

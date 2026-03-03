@@ -16,5 +16,4 @@ def get_shared_pipeline() -> UploadPipeline:
             errors_repo=UploadErrorsRepository(),
             streamlander=StreamlanderClient(),
         )
-        _pipeline.start_workers(num_workers=2)
     return _pipeline

@@ -85,12 +85,6 @@ const VideoCard = ({
           const progress = (bufferedEnd / duration) * 100;
           setBufferProgress(Math.min(progress, 100));
 
-          // Log for debugging (Next Up video)
-          if (isNextUp && progress > 0) {
-            console.log(
-              `📦 Buffering Video ${dataIndex}: ${progress.toFixed(1)}%`,
-            );
-          }
         }
       }
     };
@@ -133,20 +127,11 @@ const VideoCard = ({
     }
 
     if (isActive) {
-      console.log("▶️ Attempting to play video:", {
-        videoId: video.id,
-        videoUrl,
-        isImage,
-        isActive,
-      });
       dispatch(setActiveVideoId(video.id));
       videoElement
         .play()
-        .then(() => {
-          console.log(`✅ Started playing video: ${video.id}`);
-        })
-        .catch((e) => {
-          console.error(`❌ Error playing video ${video.id}:`, e);
+        .catch(() => {
+          setIsPlaying(false);
         });
       setIsPlaying(true);
     } else {

@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setLikedState, setLikesCount, toggleLike, fetchPostStats } from '@/store/slices/feedSlice';
+import { setLikedState, setLikesCount, toggleLike } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
 import { Heart, MessageCircle, Share2, Music, Bookmark } from 'lucide-react';
@@ -33,16 +33,12 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const burstContainerRef = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
 
-  const [statsLoaded, setStatsLoaded] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(Boolean(video.savedByUser));
 
   useEffect(() => {
-    if (!statsLoaded) {
-      dispatch(fetchPostStats(video.id));
-      setStatsLoaded(true);
-    }
-  }, [video.id, statsLoaded, dispatch]);
+    setIsSaved(Boolean(video.savedByUser));
+  }, [video.id, video.savedByUser]);
 
   const handleLike = useCallback(async () => {
     dispatch(toggleLike(video.id));
@@ -93,7 +89,6 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       const res = await postsApi.toggleLike(video.id, token);
       dispatch(setLikesCount({ videoId: video.id, likes: res.likes }));
       dispatch(setLikedState({ videoId: video.id, liked: res.liked }));
-      setStatsLoaded(true);
     } catch {
       // ignore (optimistic state stays)
     }

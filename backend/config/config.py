@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     upload_max_files: int = 8
     upload_max_file_size_mb: int = 250
     upload_ingest_concurrency: int = 8
+    pipeline_workers: int = 2
 
     cors_allow_origins: List[str] = ["*"]
 

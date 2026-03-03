@@ -23,8 +23,11 @@ def register_posts_handlers(svc: PostsService) -> None:
             skip = int(payload.get("skip", 0))
             take = max(1, min(take, 50))
             skip = max(0, skip)
-            logger.info("list_posts take=%s skip=%s", take, skip)
-            items = await svc.list_posts(take=take, skip=skip)
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else None
+            logger.info("list_posts take=%s skip=%s user_id=%s", take, skip, user_id)
+            items = await svc.list_posts(take=take, skip=skip, user_id=user_id)
             return {"items": [i.model_dump() for i in items], "take": take, "skip": skip, "total": None}
         except PyMongoError as e:
             logger.exception("list_posts db error")
@@ -77,7 +80,9 @@ def register_posts_handlers(svc: PostsService) -> None:
 
     async def handle_list_saved_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            user_id = str(payload.get("userId", ""))
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else ""
             if not user_id:
                 raise HTTPException(status_code=401, detail="authentication required")
             take = int(payload.get("take", 50))
@@ -123,11 +128,13 @@ def register_posts_handlers(svc: PostsService) -> None:
     async def handle_toggle_like(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             post_id = str(payload.get("postId", ""))
-            user_id = str(payload.get("userId", ""))
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else ""
             if not post_id:
                 raise HTTPException(status_code=400, detail="postId is required")
             if not user_id:
-                raise HTTPException(status_code=400, detail="userId is required")
+                raise HTTPException(status_code=401, detail="authentication required")
             logger.info("toggle_like post_id=%s user_id=%s", post_id, user_id)
             liked, likes = await svc.toggle_like(post_id=post_id, user_id=user_id)
             return {"postId": post_id, "liked": liked, "likes": likes}
@@ -140,7 +147,9 @@ def register_posts_handlers(svc: PostsService) -> None:
     async def handle_toggle_save_post(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             post_id = str(payload.get("postId", ""))
-            user_id = str(payload.get("userId", ""))
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else ""
             if not post_id:
                 raise HTTPException(status_code=400, detail="postId is required")
             if not user_id:
@@ -155,13 +164,15 @@ def register_posts_handlers(svc: PostsService) -> None:
     async def handle_add_comment(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             post_id = str(payload.get("postId", ""))
-            user_id = str(payload.get("userId", ""))
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else ""
             text = str(payload.get("text", ""))
             first_name = payload.get("firstName")
             if not post_id:
                 raise HTTPException(status_code=400, detail="postId is required")
             if not user_id:
-                raise HTTPException(status_code=400, detail="userId is required")
+                raise HTTPException(status_code=401, detail="authentication required")
             if not text:
                 raise HTTPException(status_code=400, detail="text is required")
             logger.info("add_comment post_id=%s user_id=%s first_name=%s", post_id, user_id, first_name)
