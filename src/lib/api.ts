@@ -34,6 +34,22 @@ export type Comment = {
   createdAt: string;
 };
 
+export type SuperAdminUploader = {
+  id: string;
+  email: string;
+  isActive: boolean;
+  userId?: string;
+};
+
+export type SuperAdminApiKey = {
+  id: string;
+  name: string;
+  createdAt: string;
+  revokedAt?: string | null;
+};
+
+const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
+
 export const media = {
   async uploadWithProgress(
     files: File[],
@@ -41,7 +57,6 @@ export const media = {
     metadata?: { caption: string; description: string; tags: string[]; username?: string; profilePhoto?: string; userId: string },
     optsAuth?: { token?: string; uploaderApiKey?: string }
   ): Promise<Post> {
-    const apiBase = env.memetokApiBaseUrl.replace(/\/$/, '');
     return await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${apiBase}/api/posts/upload`);
@@ -105,6 +120,59 @@ export const media = {
   },
   thumbUrl(mediaId: string) {
     return `${env.streamlanderBaseUrl.replace(/\/$/, '')}/media/${mediaId}?thumb=true`;
+  },
+};
+
+export const accessApi = {
+  async me(token: string): Promise<{ userId: string; isUploader: boolean }> {
+    const res = await fetch(`${apiBase}/api/me/access`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`failed to load access (${res.status})`);
+    return res.json();
+  },
+};
+
+export const superAdminApi = {
+  async listUploaders(adminKey: string): Promise<{ items: SuperAdminUploader[] }> {
+    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
+      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
+    });
+    if (!res.ok) throw new Error(`failed to list uploaders (${res.status})`);
+    return res.json();
+  },
+  async addUploader(adminKey: string, email: string): Promise<SuperAdminUploader> {
+    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error(`failed to add uploader (${res.status})`);
+    return res.json();
+  },
+  async listApiKeys(adminKey: string): Promise<{ items: SuperAdminApiKey[] }> {
+    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
+      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
+    });
+    if (!res.ok) throw new Error(`failed to list api keys (${res.status})`);
+    return res.json();
+  },
+  async createApiKey(adminKey: string, name: string): Promise<{ id: string; name: string; apiKey: string }> {
+    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error(`failed to create api key (${res.status})`);
+    return res.json();
+  },
+  async revokeApiKey(adminKey: string, id: string): Promise<{ revoked: boolean }> {
+    const res = await fetch(`${apiBase}/api/super-admin/api-keys/${id}/revoke`, {
+      method: 'POST',
+      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
+    });
+    if (!res.ok) throw new Error(`failed to revoke api key (${res.status})`);
+    return res.json();
   },
 };
 

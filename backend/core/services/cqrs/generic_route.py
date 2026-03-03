@@ -31,8 +31,8 @@ async def get_optional_user(authorization: Optional[str] = Header(default=None))
         return None
     try:
         token = authorization.split(" ", 1)[1].strip()
-        user_id = await verify_clerk_bearer_token(token)
-        return AuthUser(user_id=user_id)
+        claims = await verify_clerk_bearer_token(token)
+        return AuthUser(user_id=claims.user_id, email=claims.email)
     except (AuthError, HTTPException, Exception):
         return None
 
@@ -51,8 +51,10 @@ async def execute(
         handler = registry.get(req.action)
         
         payload = req.payload.copy()
+        payload["__auth"] = bool(user)
         if user:
             payload["userId"] = user.user_id
+            payload["requesterEmail"] = user.email
         
         result = await handler(payload)
         return result

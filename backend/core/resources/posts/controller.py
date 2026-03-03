@@ -11,6 +11,7 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from config.config import settings
 from core.logger.logger import get_logger
 from core.plugins.auth.clerk_jwt import AuthError, verify_clerk_bearer_token
+from core.resources.posts.access_control import get_access_control_service
 from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline import PipelineContext
 from core.resources.posts.pipeline_shared import get_shared_pipeline
@@ -65,17 +66,36 @@ async def upload_and_create_post(
     username: str | None = Form(default=None),
     profilePhoto: str | None = Form(default=None),
     x_api_key: str = Header(default=None, alias="X-API-KEY"),
+    authorization: str | None = Header(default=None),
 ):
-    if not x_api_key or x_api_key != settings.uploader_api_key:
-        logger.info("upload denied: invalid or missing API key")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+
+    try:
+        token = authorization.split(" ", 1)[1].strip()
+        claims = await verify_clerk_bearer_token(token)
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    if not x_api_key:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
+
+    access_service = get_access_control_service()
+    allowed = await access_service.validate_uploader(
+        user_id=claims.user_id,
+        email=claims.email or "",
+        api_key=x_api_key,
+    )
+    if not allowed:
+        logger.info("upload denied for user_id=%s email=%s", claims.user_id, claims.email)
+        raise HTTPException(status_code=403, detail="Uploader access denied")
 
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required")
     if len(files) > settings.upload_max_files:
         raise HTTPException(status_code=400, detail=f"Maximum {settings.upload_max_files} files allowed")
 
-    logger.info("upload_and_create_post user_id=%s file_count=%s", settings.uploader_user_id, len(files))
+    logger.info("upload_and_create_post user_id=%s file_count=%s", claims.user_id, len(files))
 
     videos = []
     images = []
@@ -100,11 +120,11 @@ async def upload_and_create_post(
     tag_list = [t.strip() for t in tags.split(",") if t.strip()][:20]
 
     post = await _svc.create_post(
-        user_id=settings.uploader_user_id,
+        user_id=claims.user_id,
         caption=caption,
         description=description,
         tags=tag_list,
-        username=settings.uploader_user_id,
+        username=username or claims.email or claims.user_id,
         profile_photo=profilePhoto,
     )
 
@@ -148,7 +168,7 @@ async def upload_and_create_post(
 
     context = PipelineContext(
         post_id=post.id,
-        user_id=settings.uploader_user_id,
+        user_id=claims.user_id,
         files=file_infos,
         tmp_dir=str(tmp_dir),
     )
