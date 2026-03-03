@@ -1,4 +1,7 @@
 from contextlib import asynccontextmanager
+from datetime import timedelta
+from pathlib import Path
+import shutil
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +26,24 @@ from core.resources.uploaders.handlers import register_uploaders_handlers
 logger = get_logger(__name__)
 
 
+def cleanup_stale_upload_dirs(max_age_hours: int = 1) -> int:
+    tmp_base = Path("/tmp/memetok_uploads")
+    if not tmp_base.exists():
+        return 0
+    cutoff = time.time() - timedelta(hours=max_age_hours).total_seconds()
+    removed = 0
+    for path in tmp_base.iterdir():
+        if not path.is_dir():
+            continue
+        try:
+            if path.stat().st_mtime < cutoff:
+                shutil.rmtree(path, ignore_errors=True)
+                removed += 1
+        except OSError:
+            logger.exception("failed to cleanup stale upload dir path=%s", path)
+    return removed
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     jobs_service = get_shared_jobs_service()
@@ -30,7 +51,11 @@ async def lifespan(app: FastAPI):
     logger.info("background queue worker started")
     
     pipeline = get_shared_pipeline()
-    logger.info("upload pipeline workers started")
+    removed_tmp_dirs = cleanup_stale_upload_dirs(max_age_hours=1)
+    if removed_tmp_dirs:
+        logger.info("cleaned stale upload tmp dirs count=%s", removed_tmp_dirs)
+    pipeline.start_workers(num_workers=settings.pipeline_workers)
+    logger.info("upload pipeline workers started count=%s", settings.pipeline_workers)
     
     access_service = get_access_control_service()
     await access_service.setup()

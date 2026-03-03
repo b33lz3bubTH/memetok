@@ -67,6 +67,8 @@ export const THEME_PALETTES: ThemePalette[] = [
 
 export interface VideoPost {
   id: string;
+  likedByUser?: boolean;
+  savedByUser?: boolean;
   media?: Array<{ type: 'video' | 'image'; id: string }>;
   mediaId?: string;
   mediaType?: 'video' | 'image';

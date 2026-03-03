@@ -41,7 +41,7 @@ const VideoFeed = () => {
   useEffect(() => {
     if (videos.length === 0 || !hasMore) return;
     
-    const threshold = videos.length - 1;
+    const threshold = Math.max(0, videos.length - 2);
     if (visibleVideoIndex >= threshold && !fetchingRef.current) {
       loadMore();
     }

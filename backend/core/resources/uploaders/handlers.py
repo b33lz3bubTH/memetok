@@ -89,14 +89,15 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
                 raise HTTPException(status_code=400, detail="email is required")
             
             request = UploaderCreateRequest(email=email, name=name)
-            uploader, raw_key = await svc.create_uploader(request)
+            uploader, raw_key, already_exists = await svc.create_uploader(request)
             return {
                 "id": uploader.id,
                 "email": uploader.email,
                 "name": uploader.name,
                 "status": uploader.status,
                 "apiKey": raw_key,
-                "createdAt": uploader.created_at.isoformat()
+                "createdAt": uploader.created_at.isoformat(),
+                "alreadyExists": already_exists
             }
         except PyMongoError as e:
             logger.exception("create_uploader db error")

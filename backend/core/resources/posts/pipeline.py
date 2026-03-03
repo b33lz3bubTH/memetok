@@ -53,17 +53,21 @@ class UploadPipeline:
             media_type = file_info["media_type"]
             
             try:
-                with open(file_path, "rb") as f:
-                    file_content = f.read()
-                    file_hash = hashlib.md5(file_content).hexdigest()
+                file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                hasher = hashlib.md5()
+                with open(file_path, "rb") as hash_file:
+                    for chunk in iter(lambda: hash_file.read(1024 * 1024), b""):
+                        hasher.update(chunk)
+                file_hash = hasher.hexdigest()
 
-                logger.info("uploading to streamlander post_id=%s filename=%s size=%d", context.post_id, filename, len(file_content))
+                logger.info("uploading to streamlander post_id=%s filename=%s size=%d", context.post_id, filename, file_size)
 
-                upload_result = await self.streamlander.upload(
-                    filename=filename,
-                    content_type=content_type,
-                    data=file_content,
-                )
+                with open(file_path, "rb") as upload_file:
+                    upload_result = await self.streamlander.upload(
+                        filename=filename,
+                        content_type=content_type,
+                        data=upload_file,
+                    )
 
                 media_id = upload_result.get("id")
                 if not media_id:
@@ -78,7 +82,10 @@ class UploadPipeline:
                 try:
                     if os.path.exists(file_path):
                         with open(file_path, "rb") as f:
-                            file_hash = hashlib.md5(f.read()).hexdigest()
+                            hasher = hashlib.md5()
+                            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                                hasher.update(chunk)
+                            file_hash = hasher.hexdigest()
                 except Exception:
                     pass
                 context.errors.append({

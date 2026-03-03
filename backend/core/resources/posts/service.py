@@ -48,8 +48,16 @@ class PostsService:
         logger.info("post created (pending) post_id=%s user_id=%s", post_id, user_id)
         return PostDTO.model_validate(doc)
 
-    async def list_posts(self, take: int, skip: int) -> List[PostListDTO]:
+    async def list_posts(self, take: int, skip: int, user_id: str | None = None) -> List[PostListDTO]:
         docs = await self.posts_repo.find_latest_posted(take=take, skip=skip)
+        if user_id and docs:
+            post_ids = [d.get("id") for d in docs if d.get("id")]
+            liked_ids = set(await self.likes_repo.list_liked_post_ids(user_id=user_id, post_ids=post_ids))
+            saved_ids = set(await self.saved_posts_repo.list_saved_post_ids_for_posts(user_id=user_id, post_ids=post_ids))
+            for d in docs:
+                post_id = d.get("id")
+                d["likedByUser"] = post_id in liked_ids
+                d["savedByUser"] = post_id in saved_ids
         logger.info("list_posts ok take=%s skip=%s count=%s", take, skip, len(docs))
         return [PostListDTO.model_validate(d) for d in docs]
 
@@ -68,11 +76,14 @@ class PostsService:
         if not post_ids:
             return []
 
+        posts = await self.posts_repo.find_by_ids(post_ids)
+        by_id = {p.get("id"): p for p in posts if p.get("status") == "posted"}
         items: List[PostListDTO] = []
         for post_id in post_ids:
-            post = await self.posts_repo.find_by_id(post_id)
-            if not post or post.get("status") != "posted":
+            post = by_id.get(post_id)
+            if not post:
                 continue
+            post["savedByUser"] = True
             items.append(PostListDTO.model_validate(post))
         return items
 

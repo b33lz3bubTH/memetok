@@ -1,6 +1,6 @@
 import { env } from '@/lib/env';
 import { cache } from '@/lib/cache';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiPost } from '@/lib/api-client';
 
 export type MediaType = 'video' | 'image';
 
@@ -9,16 +9,8 @@ export type MediaItem = {
   id: string;
 };
 
-export type Post = {
-  id: string;
-  media: MediaItem[];
-  caption: string;
-  description: string;
-  tags: string[];
-  status: 'pending' | 'posted';
-  createdAt: string;
-  author: { userId: string; username?: string; profilePhoto?: string };
-};
+export type Post = ApiPost;
+
 
 export type PostStats = {
   postId: string;
@@ -84,7 +76,7 @@ export const media = {
         const msg =
           typeof xhr.response === 'string'
             ? xhr.response
-            : (xhr.response as any)?.detail || xhr.responseText || `upload failed (${xhr.status})`;
+             : (xhr.response as { detail?: string })?.detail || xhr.responseText || `upload failed (${xhr.status})`;
         reject(new Error(msg));
       };
       xhr.onerror = () => reject(new Error('upload failed'));
@@ -126,8 +118,7 @@ export const media = {
 
 export const accessApi = {
   async me(token: string, email?: string): Promise<{ userId: string; isUploader: boolean }> {
-    apiClient.setToken(token);
-    return apiClient.query.getMyAccess({ email });
+    return apiClient.query.getMyAccess({ email }, { token });
   },
 };
 
@@ -135,7 +126,7 @@ export const superAdminApi = {
   async listUploaders(): Promise<{ items: SuperAdminUploader[] }> {
     const res = await apiClient.query.listUploaders();
     return {
-      items: res.items.map((i: any) => ({
+      items: res.items.map((i) => ({
         id: i.id,
         email: i.email,
         isActive: i.status === 'active'
@@ -197,8 +188,7 @@ export const postsApi = {
   },
 
   async toggleLike(postId: string, token: string) {
-    apiClient.setToken(token);
-    return apiClient.mutation.toggleLike({ postId });
+    return apiClient.mutation.toggleLike({ postId }, { token });
   },
 
   async listComments(postId: string, take = 20, skip = 0) {
@@ -208,8 +198,7 @@ export const postsApi = {
   },
 
   async addComment(postId: string, text: string, token: string, firstName?: string) {
-    apiClient.setToken(token);
-    return apiClient.mutation.addComment({ postId, text, firstName });
+    return apiClient.mutation.addComment({ postId, text, firstName }, { token });
   },
 
   async listByUser(userId: string, take = 50, skip = 0, email?: string) {
@@ -217,12 +206,10 @@ export const postsApi = {
   },
 
   async listSaved(token: string, take = 50, skip = 0) {
-    apiClient.setToken(token);
-    return apiClient.query.listSavedPosts({ take, skip });
+    return apiClient.query.listSavedPosts({ take, skip }, { token });
   },
 
   async toggleSave(postId: string, token: string) {
-    apiClient.setToken(token);
-    return apiClient.mutation.toggleSavePost({ postId });
+    return apiClient.mutation.toggleSavePost({ postId }, { token });
   },
 };

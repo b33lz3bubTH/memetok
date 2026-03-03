@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from database.mongo_factory import get_mongo
@@ -59,12 +59,12 @@ class ApiKeysRepository:
         mongo = get_mongo()
         await mongo.db[API_KEYS_COLLECTION].update_many(
             {"uploader_id": uploader_id, "status": "active"},
-            {"$set": {"status": "revoked", "revokedAt": datetime.utcnow()}}
+            {"$set": {"status": "revoked", "revokedAt": datetime.now(timezone.utc)}}
         )
 
     async def revoke_key(self, key_id: str) -> None:
         mongo = get_mongo()
         await mongo.db[API_KEYS_COLLECTION].update_one(
             {"id": key_id},
-            {"$set": {"status": "revoked", "revokedAt": datetime.utcnow()}}
+            {"$set": {"status": "revoked", "revokedAt": datetime.now(timezone.utc)}}
         )
