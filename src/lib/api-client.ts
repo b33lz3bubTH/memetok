@@ -13,11 +13,12 @@ type QueryPayload = {
   [UploadersQueryAction.LIST_UPLOADERS]: {};
   [UploadersQueryAction.GET_UPLOADER]: { uploaderId: string };
   [UploadersQueryAction.VALIDATE_API_KEY]: { email: string; apiKey: string };
+  [UploadersQueryAction.GET_MY_ACCESS]: {};
 };
 
 type MutationPayload = {
   [PostsMutationAction.TOGGLE_LIKE]: { postId: string };
-  [PostsMutationAction.ADD_COMMENT]: { postId: string; text: string };
+  [PostsMutationAction.ADD_COMMENT]: { postId: string; text: string; firstName?: string };
   [PostsMutationAction.TOGGLE_SAVE_POST]: { postId: string };
   [UploadersMutationAction.CREATE_UPLOADER]: { email: string; name?: string };
   [UploadersMutationAction.UPDATE_UPLOADER_STATUS]: { uploaderId: string; status: string };
@@ -138,6 +139,10 @@ class ApiClient {
 
     validateApiKey: async (payload: QueryPayload[typeof UploadersQueryAction.VALIDATE_API_KEY]) => {
       return this.execute<{ isValid: boolean }>('query', UploadersQueryAction.VALIDATE_API_KEY, payload);
+    },
+
+    getMyAccess: async () => {
+      return this.execute<{ userId: string; isUploader: boolean }>('query', UploadersQueryAction.GET_MY_ACCESS);
     },
   };
 

@@ -61,6 +61,22 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
         is_valid = await svc.validate_api_key(api_key=api_key, email=email)
         return {"isValid": is_valid}
 
+    async def handle_get_my_access(payload: Dict[str, Any]) -> Dict[str, Any]:
+        auth = payload.get("__auth", {})
+        user = auth.get("user")
+        if not user:
+            raise HTTPException(status_code=401, detail="authentication required")
+        
+        email = user.email
+        from core.resources.posts.access_control import get_access_control_service
+        access_service = get_access_control_service()
+        is_uploader = await access_service.is_uploader_user(email)
+        
+        return {
+            "userId": user.user_id,
+            "isUploader": is_uploader
+        }
+
     async def handle_create_uploader(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             _check_super_admin(payload)
@@ -104,6 +120,7 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
 
     query_registry.register(UploadersQueryAction.LIST_UPLOADERS, handle_list_uploaders)
     query_registry.register(UploadersQueryAction.VALIDATE_API_KEY, handle_validate_api_key)
+    query_registry.register(UploadersQueryAction.GET_MY_ACCESS, handle_get_my_access)
 
     mutation_registry.register(UploadersMutationAction.CREATE_UPLOADER, handle_create_uploader)
     mutation_registry.register(UploadersMutationAction.UPDATE_UPLOADER_STATUS, handle_update_uploader_status)

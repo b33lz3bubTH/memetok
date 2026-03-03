@@ -17,6 +17,7 @@ export const UploadersQueryAction = {
   LIST_UPLOADERS: 'list_uploaders',
   GET_UPLOADER: 'get_uploader',
   VALIDATE_API_KEY: 'validate_api_key',
+  GET_MY_ACCESS: 'get_my_access',
 } as const;
 
 export const UploadersMutationAction = {

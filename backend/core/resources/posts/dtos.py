@@ -75,6 +75,7 @@ class PostStatsResponse(BaseModel):
 
 class CommentCreateRequest(BaseModel):
     text: str = Field(min_length=1, max_length=300)
+    firstName: Optional[str] = None
 
 
 class CommentDTO(BaseModel):
@@ -82,6 +83,7 @@ class CommentDTO(BaseModel):
     postId: str
     userId: str
     text: str
+    firstName: Optional[str] = None
     createdAt: datetime
 
 

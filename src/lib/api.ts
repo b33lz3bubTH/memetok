@@ -31,6 +31,7 @@ export type Comment = {
   postId: string;
   userId: string;
   text: string;
+  firstName?: string;
   createdAt: string;
 };
 
@@ -125,11 +126,8 @@ export const media = {
 
 export const accessApi = {
   async me(token: string): Promise<{ userId: string; isUploader: boolean }> {
-    const res = await fetch(`${apiBase}/api/me/access`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`failed to load access (${res.status})`);
-    return res.json();
+    apiClient.setToken(token);
+    return apiClient.query.getMyAccess();
   },
 };
 
@@ -209,9 +207,9 @@ export const postsApi = {
     return res;
   },
 
-  async addComment(postId: string, text: string, token: string) {
+  async addComment(postId: string, text: string, token: string, firstName?: string) {
     apiClient.setToken(token);
-    return apiClient.mutation.addComment({ postId, text });
+    return apiClient.mutation.addComment({ postId, text, firstName });
   },
 
   async listByUser(userId: string, take = 50, skip = 0) {

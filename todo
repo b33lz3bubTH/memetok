@@ -1,2 +1,4 @@
-1. in super admin route, it will ask for super admin credentials in a modal first then it will allow setting uploaders and api keys for each individual uploaders, and revoke keys.
-2. create a proper db schema for these. and also check the backend for this.
+1. video isnt playing properly, thumb is shown, but the video at frontend isnt playing, add debug logs, what might be the issue.
+2. when logged in call backend, to check if the user is uploader or not, if yes then show upload button floating, onclick it will take to the /upload page
+3. if the user is uploader then they can see the posts they uploaded.
+4. for normal users it wil  be just like, comment and share, thats all.

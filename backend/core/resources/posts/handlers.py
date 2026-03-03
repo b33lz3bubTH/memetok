@@ -48,10 +48,13 @@ def register_posts_handlers(svc: PostsService) -> None:
             authenticated = auth.get("authenticated", False) if isinstance(auth, dict) else bool(auth)
             if not authenticated:
                 raise HTTPException(status_code=401, detail="authentication required")
-            user_id = str(payload.get("userId", ""))
-            if not user_id:
-                raise HTTPException(status_code=400, detail="userId is required")
-            email = auth.get("user").email if auth.get("user") else None
+            user = auth.get("user")
+            if not user:
+                raise HTTPException(status_code=401, detail="authentication required")
+            
+            user_id = user.user_id
+            email = user.email
+            
             access_service = get_access_control_service()
             is_uploader = await access_service.is_uploader_user(email)
             if not is_uploader:
@@ -152,14 +155,15 @@ def register_posts_handlers(svc: PostsService) -> None:
             post_id = str(payload.get("postId", ""))
             user_id = str(payload.get("userId", ""))
             text = str(payload.get("text", ""))
+            first_name = payload.get("firstName")
             if not post_id:
                 raise HTTPException(status_code=400, detail="postId is required")
             if not user_id:
                 raise HTTPException(status_code=400, detail="userId is required")
             if not text:
                 raise HTTPException(status_code=400, detail="text is required")
-            logger.info("add_comment post_id=%s user_id=%s", post_id, user_id)
-            comment = await svc.add_comment(post_id=post_id, user_id=user_id, text=text)
+            logger.info("add_comment post_id=%s user_id=%s first_name=%s", post_id, user_id, first_name)
+            comment = await svc.add_comment(post_id=post_id, user_id=user_id, text=text, first_name=first_name)
             return comment.model_dump()
         except PostNotFoundError as e:
             logger.info("add_comment not found post_id=%s", payload.get("postId"))
