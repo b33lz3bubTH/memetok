@@ -77,6 +77,7 @@ async def verify_clerk_bearer_token(token: str) -> AuthClaims:
             algorithms=["RS256"],
             issuer=settings.clerk_issuer,
             options={"verify_aud": False},
+            leeway=30,
         )
     except Exception as e:  # noqa: BLE001
         raise AuthError("token verification failed") from e

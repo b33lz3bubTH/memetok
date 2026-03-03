@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from typing import Any, Dict
 from fastapi import HTTPException
 from pymongo.errors import PyMongoError
@@ -27,7 +28,7 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
                 admin_key = v
                 break
         
-        if not admin_key or admin_key != settings.super_admin_api_key:
+        if not admin_key or not hmac.compare_digest(admin_key, settings.super_admin_api_key):
             logger.warning("unauthorized super admin attempt")
             raise HTTPException(status_code=401, detail="unauthorized super admin")
 

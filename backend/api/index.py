@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 import shutil
+import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from uuid import uuid4
 import time
 
@@ -21,9 +23,45 @@ from core.resources.posts.service import PostsService
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
 from core.resources.uploaders.service import UploaderService
 from core.resources.uploaders.handlers import register_uploaders_handlers
+from core.plugins.security import SecurityHeadersMiddleware, RateLimitMiddleware, RequestTimeoutMiddleware
+from database.mongo_factory import check_health as db_check_health
 
 
 logger = get_logger(__name__)
+
+_is_production = settings.environment == "production"
+
+
+def _print_startup_banner() -> None:
+    """Print a sanitized config summary at startup."""
+    logger.info("=" * 60)
+    logger.info("MEMETOK BACKEND — starting up")
+    logger.info("=" * 60)
+    logger.info("  environment       : %s", settings.environment)
+    logger.info("  mongo_db          : %s", settings.mongo_db)
+    logger.info("  mongo_pool        : min=%d max=%d", settings.mongo_min_pool_size, settings.mongo_max_pool_size)
+    logger.info("  cors_origins      : %s", settings.cors_allow_origins)
+    logger.info("  rate_limit_rpm    : %d", settings.rate_limit_rpm)
+    logger.info("  request_timeout   : %ds", settings.request_timeout_seconds)
+    logger.info("  pipeline_workers  : %d", settings.pipeline_workers)
+    logger.info("  upload_max_files  : %d", settings.upload_max_files)
+    logger.info("  upload_max_size   : %dMB", settings.upload_max_file_size_mb)
+    logger.info("  auth_disabled     : %s", settings.auth_disabled)
+    logger.info("  log_format        : %s", settings.log_format)
+    logger.info("=" * 60)
+
+
+def _validate_secrets() -> None:
+    """Block startup in production if secrets are defaults."""
+    problems = settings.validate_production_secrets()
+    if problems and _is_production:
+        for p in problems:
+            logger.error("CONFIG ERROR: %s", p)
+        logger.error("Refusing to start in production with insecure defaults. Fix your .env file.")
+        sys.exit(1)
+    elif problems:
+        for p in problems:
+            logger.warning("CONFIG WARNING: %s", p)
 
 
 def cleanup_stale_upload_dirs(max_age_hours: int = 1) -> int:
@@ -46,6 +84,9 @@ def cleanup_stale_upload_dirs(max_age_hours: int = 1) -> int:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _print_startup_banner()
+    _validate_secrets()
+
     jobs_service = get_shared_jobs_service()
     jobs_service.start_worker()
     logger.info("background queue worker started")
@@ -61,15 +102,25 @@ async def lifespan(app: FastAPI):
     await access_service.setup()
     logger.info("access control indexes ensured")
 
+    # Ensure ALL repository indexes at startup (not just posts)
+    posts_repo = PostsRepository()
+    likes_repo = LikesRepository()
+    comments_repo = CommentsRepository()
+    saved_posts_repo = SavedPostsRepository()
+    await posts_repo.ensure_indexes()
+    await likes_repo.ensure_indexes()
+    await saved_posts_repo.ensure_indexes()
+    logger.info("all repository indexes ensured")
+
     event_bus = get_event_bus()
     event_bus.start()
     logger.info("event bus started")
     
     posts_service = PostsService(
-        posts_repo=PostsRepository(),
-        likes_repo=LikesRepository(),
-        comments_repo=CommentsRepository(),
-        saved_posts_repo=SavedPostsRepository(),
+        posts_repo=posts_repo,
+        likes_repo=likes_repo,
+        comments_repo=comments_repo,
+        saved_posts_repo=saved_posts_repo,
         jobs_service=jobs_service,
     )
     register_posts_handlers(posts_service)
@@ -81,6 +132,8 @@ async def lifespan(app: FastAPI):
     uploader_service = UploaderService()
     register_uploaders_handlers(uploader_service)
     logger.info("uploader handlers registered")
+
+    logger.info("startup complete — ready to serve")
     
     yield
     
@@ -93,12 +146,24 @@ async def lifespan(app: FastAPI):
     await pipeline.stop_workers()
     logger.info("upload pipeline workers stopped")
 
+    logger.info("shutdown complete")
+
 
 def create_app() -> FastAPI:
     app = FastAPI(title="memetok-backend", version="0.1.0", lifespan=lifespan)
 
-    # When allow_origins is ["*"], allow_credentials must be False
-    # Otherwise, we can use allow_credentials=True with specific origins
+    # --- Security Middleware (outermost = applied first) ---
+    # Order matters: timeout → rate limit → security headers → CORS → request log
+    app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=settings.request_timeout_seconds)
+    app.add_middleware(
+        RateLimitMiddleware,
+        max_requests=settings.rate_limit_rpm,
+        window_seconds=60,
+        exempt_paths=["/health"],
+    )
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # CORS
     cors_origins = settings.cors_allow_origins
     use_credentials = cors_origins != ["*"] and len(cors_origins) > 0
 
@@ -114,6 +179,16 @@ def create_app() -> FastAPI:
     app.include_router(generic_router)
     app.include_router(posts_upload_router, prefix="/api")
 
+    # --- Global exception handler (strips stack traces in production) ---
+    @app.exception_handler(Exception)
+    async def _global_exception_handler(request: Request, exc: Exception):
+        logger.exception("unhandled exception path=%s", request.url.path)
+        detail = "internal server error"
+        if not _is_production:
+            detail = f"{type(exc).__name__}: {exc}"
+        return JSONResponse(status_code=500, content={"detail": detail})
+
+    # --- Request logging middleware ---
     @app.middleware("http")
     async def _log_requests(request, call_next):  # type: ignore[no-untyped-def]
         req_id = uuid4().hex[:12]
@@ -129,9 +204,16 @@ def create_app() -> FastAPI:
         logger.info("req end id=%s status=%s dur_ms=%s", req_id, response.status_code, dur_ms)
         return response
 
+    # --- Health check with DB connectivity ---
     @app.get("/health")
     async def health():
-        return {"status": "ok"}
+        db_ok = await db_check_health()
+        status = "ok" if db_ok else "degraded"
+        code = 200 if db_ok else 503
+        return JSONResponse(
+            status_code=code,
+            content={"status": status, "db": "connected" if db_ok else "unreachable"},
+        )
 
     logger.info("app created")
     return app
