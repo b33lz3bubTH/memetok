@@ -72,6 +72,7 @@ type MutationPayload = {
     status: string;
   };
   [UploadersMutationAction.REVOKE_API_KEY]: { uploaderId: string };
+  [PostsMutationAction.DELETE_POST]: { postId: string };
 };
 
 class ApiClient {
@@ -306,6 +307,15 @@ class ApiClient {
       return this.execute<{ apiKey: string }>(
         "mutation",
         UploadersMutationAction.REVOKE_API_KEY,
+        payload,
+      );
+    },
+    deletePost: async (
+      payload: MutationPayload[typeof PostsMutationAction.DELETE_POST],
+    ) => {
+      return this.execute<{ success: boolean }>(
+        "mutation",
+        PostsMutationAction.DELETE_POST,
         payload,
       );
     },

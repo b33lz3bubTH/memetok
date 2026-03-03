@@ -212,4 +212,8 @@ export const postsApi = {
   async toggleSave(postId: string, token: string) {
     return apiClient.mutation.toggleSavePost({ postId }, { token });
   },
+
+  async delete(postId: string) {
+    return apiClient.mutation.deletePost({ postId });
+  },
 };

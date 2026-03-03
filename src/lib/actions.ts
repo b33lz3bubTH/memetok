@@ -11,6 +11,7 @@ export const PostsMutationAction = {
   TOGGLE_LIKE: 'toggle_like',
   ADD_COMMENT: 'add_comment',
   TOGGLE_SAVE_POST: 'toggle_save_post',
+  DELETE_POST: 'delete_post',
 } as const;
 
 export const UploadersQueryAction = {

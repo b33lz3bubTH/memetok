@@ -151,15 +151,15 @@ class PostsService:
         await self.posts_repo.inc_counts(post_id=post_id, comments_delta=1)
         return CommentDTO.model_validate(doc)
 
-    async def delete_post(self, post_id: str, requesting_user_id: str) -> None:
-        """Soft-delete a post. Only the owner can delete their own post."""
+    async def delete_post(self, post_id: str, requesting_user_id: str, is_admin: bool = False) -> None:
+        """Soft-delete a post. Only the owner or an admin can delete a post."""
         post = await self.posts_repo.find_by_id(post_id)
         if not post:
             raise PostNotFoundError()
-        if post.get("author", {}).get("userId") != requesting_user_id:
+        if not is_admin and post.get("author", {}).get("userId") != requesting_user_id:
             raise PermissionError("You can only delete your own posts")
         await self.posts_repo.soft_delete(post_id)
-        logger.info("post soft-deleted post_id=%s user_id=%s", post_id, requesting_user_id)
+        logger.info("post soft-deleted post_id=%s user_id=%s is_admin=%s", post_id, requesting_user_id, is_admin)
 
     async def search_posts(self, query: str, take: int, skip: int) -> List[PostListDTO]:
         """Search posts by text across caption, description and tags."""

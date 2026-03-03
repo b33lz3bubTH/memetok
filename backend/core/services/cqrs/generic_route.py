@@ -58,7 +58,8 @@ async def execute(
         payload["__auth"] = {
             "authenticated": bool(user),
             "user": user,
-            "headers": dict(request.headers)
+            "headers": dict(request.headers),
+            "is_super_admin": is_super_admin
         }
         if user:
             payload["userId"] = user.user_id

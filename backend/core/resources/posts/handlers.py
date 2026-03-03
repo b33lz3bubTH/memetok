@@ -205,11 +205,13 @@ def register_posts_handlers(svc: PostsService) -> None:
             auth = payload.get("__auth", {})
             user = auth.get("user") if isinstance(auth, dict) else None
             user_id = user.user_id if user else ""
-            if not user_id:
+            is_super_admin = auth.get("is_super_admin", False) if isinstance(auth, dict) else False
+
+            if not user_id and not is_super_admin:
                 raise HTTPException(status_code=401, detail="authentication required")
 
-            logger.info("delete_post post_id=%s user_id=%s", post_id, user_id)
-            await svc.delete_post(post_id=post_id, requesting_user_id=user_id)
+            logger.info("delete_post post_id=%s user_id=%s is_admin=%s", post_id, user_id, is_super_admin)
+            await svc.delete_post(post_id=post_id, requesting_user_id=user_id, is_admin=is_super_admin)
             return {"postId": post_id, "deleted": True}
         except PostNotFoundError as e:
             logger.info("delete_post not found post_id=%s", post_id)
