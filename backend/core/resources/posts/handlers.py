@@ -44,7 +44,9 @@ def register_posts_handlers(svc: PostsService) -> None:
 
     async def handle_list_user_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            if not payload.get("__auth"):
+            auth = payload.get("__auth", {})
+            authenticated = auth.get("authenticated", False) if isinstance(auth, dict) else bool(auth)
+            if not authenticated:
                 raise HTTPException(status_code=401, detail="authentication required")
             user_id = str(payload.get("userId", ""))
             if not user_id:

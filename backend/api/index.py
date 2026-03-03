@@ -11,12 +11,13 @@ from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline_shared import get_shared_pipeline
 from core.services.cqrs.generic_route import router as generic_router
 from core.resources.posts.controller import router as posts_upload_router
-from core.resources.posts.admin_controller import router as posts_admin_router
 from core.resources.posts.access_control import get_access_control_service
 from core.services.cqrs.event_bus import get_event_bus
 from core.resources.posts.handlers import register_posts_handlers
 from core.resources.posts.service import PostsService
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
+from core.resources.uploaders.service import UploaderService
+from core.resources.uploaders.handlers import register_uploaders_handlers
 
 
 logger = get_logger(__name__)
@@ -48,6 +49,10 @@ async def lifespan(app: FastAPI):
     )
     register_posts_handlers(posts_service)
     logger.info("posts handlers registered")
+
+    uploader_service = UploaderService()
+    register_uploaders_handlers(uploader_service)
+    logger.info("uploader handlers registered")
     
     yield
     
@@ -80,7 +85,6 @@ def create_app() -> FastAPI:
 
     app.include_router(generic_router)
     app.include_router(posts_upload_router, prefix="/api")
-    app.include_router(posts_admin_router, prefix="/api")
 
     @app.middleware("http")
     async def _log_requests(request, call_next):  # type: ignore[no-untyped-def]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel, Field
 
 from core.logger.logger import get_logger
@@ -40,18 +40,26 @@ async def get_optional_user(authorization: Optional[str] = Header(default=None))
 @router.post("/api/execute")
 async def execute(
     req: GenericRequest,
+    request: Request,
     user: Optional[AuthUser] = Depends(get_optional_user),
 ):
     try:
         registry = query_registry if req.type == "query" else mutation_registry
         
-        if req.type == "mutation" and not user:
+        from config.config import settings
+        is_super_admin = request.headers.get("x-super-admin-key") == settings.super_admin_api_key
+
+        if req.type == "mutation" and not user and not is_super_admin:
             raise HTTPException(status_code=401, detail="authentication required for mutations")
         
         handler = registry.get(req.action)
         
         payload = req.payload.copy()
-        payload["__auth"] = bool(user)
+        payload["__auth"] = {
+            "authenticated": bool(user),
+            "user": user,
+            "headers": dict(request.headers)
+        }
         if user:
             payload["userId"] = user.user_id
             payload["requesterEmail"] = user.email

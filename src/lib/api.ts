@@ -134,45 +134,49 @@ export const accessApi = {
 };
 
 export const superAdminApi = {
-  async listUploaders(adminKey: string): Promise<{ items: SuperAdminUploader[] }> {
-    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to list uploaders (${res.status})`);
-    return res.json();
+  async listUploaders(): Promise<{ items: SuperAdminUploader[] }> {
+    const res = await apiClient.query.listUploaders();
+    return {
+      items: res.items.map((i: any) => ({
+        id: i.id,
+        email: i.email,
+        isActive: i.status === 'active',
+        userId: i.userId
+      }))
+    };
   },
-  async addUploader(adminKey: string, email: string): Promise<SuperAdminUploader> {
-    const res = await fetch(`${apiBase}/api/super-admin/uploaders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
-      body: JSON.stringify({ email }),
-    });
-    if (!res.ok) throw new Error(`failed to add uploader (${res.status})`);
-    return res.json();
+  async addUploader(email: string, name?: string): Promise<SuperAdminUploader> {
+    const res = await apiClient.mutation.createUploader({ email, name });
+    return {
+      id: res.id,
+      email: res.email,
+      isActive: res.status === 'active',
+      userId: res.userId
+    };
   },
-  async listApiKeys(adminKey: string): Promise<{ items: SuperAdminApiKey[] }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to list api keys (${res.status})`);
-    return res.json();
+  async listApiKeys(): Promise<{ items: SuperAdminApiKey[] }> {
+    // In the new system, API keys are per uploader.
+    // However, for compatibility with the old UI, we'll return all uploaders' info or similar.
+    // Or just let the UI manage uploaders.
+    // The old UI had a separate list of standalone API keys.
+    // I'll return an empty list for now or adapt the UI.
+    return { items: [] };
   },
-  async createApiKey(adminKey: string, name: string): Promise<{ id: string; name: string; apiKey: string }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-SUPER-ADMIN-KEY': adminKey },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error(`failed to create api key (${res.status})`);
-    return res.json();
+  async validateApiKey(email: string, apiKey: string): Promise<{ isValid: boolean }> {
+    const res = await apiClient.query.validateApiKey({ email, apiKey });
+    return { isValid: res.isValid };
   },
-  async revokeApiKey(adminKey: string, id: string): Promise<{ revoked: boolean }> {
-    const res = await fetch(`${apiBase}/api/super-admin/api-keys/${id}/revoke`, {
-      method: 'POST',
-      headers: { 'X-SUPER-ADMIN-KEY': adminKey },
-    });
-    if (!res.ok) throw new Error(`failed to revoke api key (${res.status})`);
-    return res.json();
+  async createApiKey(uploaderId: string): Promise<{ apiKey: string }> {
+    return apiClient.mutation.revokeApiKey({ uploaderId });
+  },
+  async revokeApiKey(uploaderId: string): Promise<{ revoked: boolean }> {
+    // In new system, we just update status to something else if we want to "revoke" the uploader
+    // or revoke the single API key they have.
+    await apiClient.mutation.revokeApiKey({ uploaderId });
+    return { revoked: true };
+  },
+  setAdminKey(key: string) {
+    apiClient.setSuperAdminKey(key);
   },
 };
 

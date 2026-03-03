@@ -1,5 +1,2 @@
-1. there will be one super admin, with its admin panel, that can add email for uploaders and can generate api keys and revoke them
-2. when uploaders uploading, just check with clerk that email and session is valid, and the api key that was provided is valid, it will be set in my db, nothing on clerk side. clerk will just do the login verification thats all.
-3. /super-admin on frontnend to add email and api keys dynamically thats all, no google login required for super admin, it will be purely done by api key.
-4. i want enterprise codebase, only uploaders can see there uploaded post and saved posts.
-5. normal users can like, comment and save posts, and they wont have my posts option in there profile page.
+1. in super admin route, it will ask for super admin credentials in a modal first then it will allow setting uploaders and api keys for each individual uploaders, and revoke keys.
+2. create a proper db schema for these. and also check the backend for this.
