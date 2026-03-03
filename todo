@@ -1,7 +1,5 @@
-1. fix the upload logic asap.
-2. uploader cannot be any one. create a separate section, with api key, only from there, this upload flow will happen, and people are allowed to login save the videos, and see them in there profile.
-3. only one uploader always, that too throught api key.
-4. people can come, and like and comment thats all, and view all the posts.
-5. if people doesnt login, they cannot comment or like, thats all.
-6. i want enterprise level flow.
-so basically a person will upload all videos and what not, other can view it effortlessly, logged in users can only like and comment, rest every one can view the posts, and share. and logged in users will have there profile where they can save posts, and watch posts again that they have saved.
+1. there will be one super admin, with its admin panel, that can add email for uploaders and can generate api keys and revoke them
+2. when uploaders uploading, just check with clerk that email and session is valid, and the api key that was provided is valid, it will be set in my db, nothing on clerk side. clerk will just do the login verification thats all.
+3. /super-admin on frontnend to add email and api keys dynamically thats all, no google login required for super admin, it will be purely done by api key.
+4. i want enterprise codebase, only uploaders can see there uploaded post and saved posts.
+5. normal users can like, comment and save posts, and they wont have my posts option in there profile page.
