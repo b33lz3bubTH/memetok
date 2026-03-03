@@ -10,7 +10,11 @@
     --theme-text: 0 0% 100%;
     --theme-background: 260 30% 6%;
     --theme-accent: 330 100% 60%;
-    --theme-gradient: linear-gradient(135deg, hsl(280 100% 60%), hsl(330 100% 60%));
+    --theme-gradient: linear-gradient(
+      135deg,
+      hsl(280 100% 60%),
+      hsl(330 100% 60%)
+    );
 
     /* Base shadcn variables mapped to theme */
     --background: var(--theme-background);
@@ -45,8 +49,16 @@
 
     /* Custom properties */
     --glass-bg: 260 30% 10% / 0.8;
-    --overlay-gradient: linear-gradient(to top, hsl(0 0% 0% / 0.8) 0%, transparent 50%);
-    --sidebar-gradient: linear-gradient(to left, hsl(0 0% 0% / 0.3) 0%, transparent 100%);
+    --overlay-gradient: linear-gradient(
+      to top,
+      hsl(0 0% 0% / 0.8) 0%,
+      transparent 50%
+    );
+    --sidebar-gradient: linear-gradient(
+      to left,
+      hsl(0 0% 0% / 0.3) 0%,
+      transparent 100%
+    );
   }
 
   * {
@@ -60,7 +72,13 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
     overflow: hidden;
     background: hsl(var(--theme-background)) !important;
     background-color: hsl(var(--theme-background)) !important;
@@ -126,7 +144,11 @@
   .sound-disc {
     @apply w-12 h-12 rounded-full border-2 flex items-center justify-center;
     border-color: hsl(var(--theme-primary));
-    background: linear-gradient(135deg, hsl(var(--theme-primary) / 0.3), hsl(var(--theme-accent) / 0.3));
+    background: linear-gradient(
+      135deg,
+      hsl(var(--theme-primary) / 0.3),
+      hsl(var(--theme-accent) / 0.3)
+    );
   }
 
   .sound-disc-rotating {
@@ -225,7 +247,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 20px hsl(var(--theme-primary) / 0.5);
   }
   50% {
@@ -234,7 +257,8 @@
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
