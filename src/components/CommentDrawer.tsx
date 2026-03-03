@@ -145,7 +145,11 @@ const CommentDrawer = () => {
           {!isLoading &&
             comments.map((comment) => (
               <div key={comment.id} className="flex gap-3">
-                <div className="w-10 h-10 rounded-full flex-shrink-0 bg-white/10" />
+                <img
+                  src={`https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${comment.userId}`}
+                  alt={comment.firstName || "User"}
+                  className="w-10 h-10 rounded-full flex-shrink-0 bg-white/5 border border-white/10"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-white font-medium text-sm">
@@ -177,6 +181,14 @@ const CommentDrawer = () => {
               </SignInButton>
             </SignedOut>
             <SignedIn>
+              <img
+                src={
+                  user?.imageUrl ||
+                  `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${user?.id}`
+                }
+                alt="Me"
+                className="w-10 h-10 rounded-full flex-shrink-0 bg-white/5 border border-white/10"
+              />
               <input
                 type="text"
                 value={text}

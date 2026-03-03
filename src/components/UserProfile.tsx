@@ -1,14 +1,45 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUser, useClerk, SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
-import { LogOut, User, Settings, Upload } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  useUser,
+  useClerk,
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  useAuth,
+} from "@clerk/clerk-react";
+import { LogOut, User, Settings, Upload } from "lucide-react";
+import { accessApi } from "@/lib/api";
 
 const UserProfile = () => {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [isUploader, setIsUploader] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkUploaderStatus = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          const res = await accessApi.me(
+            token,
+            user.primaryEmailAddress?.emailAddress,
+          );
+          setIsUploader(res.isUploader);
+        }
+      } catch (error) {
+        console.error("Error checking uploader status:", error);
+      }
+    };
+
+    if (user) {
+      checkUploaderStatus();
+    }
+  }, [user, getToken]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -18,11 +49,11 @@ const UserProfile = () => {
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -44,56 +75,62 @@ const UserProfile = () => {
             {user?.imageUrl && (
               <img
                 src={user.imageUrl}
-                alt={user.fullName || 'Profile'}
+                alt={user.fullName || "Profile"}
                 className="w-8 h-8 rounded-full object-cover"
               />
             )}
             <span className="text-white/90 text-sm font-medium max-w-[120px] truncate">
-              {user?.fullName || user?.username || 'User'}
+              {user?.fullName || user?.username || "User"}
             </span>
           </button>
 
           {isOpen && (
-            <div className="absolute top-full right-0 mt-2 glass rounded-lg shadow-lg min-w-[200px] overflow-hidden">
+            <div className="absolute top-full right-0 mt-2 glass rounded-lg shadow-lg min-w-[200px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               <div className="p-2">
                 <div className="px-3 py-2 text-sm text-white/70 border-b border-white/10">
-                  <div className="font-medium text-white">{user?.fullName || user?.username}</div>
-                  <div className="text-xs text-white/50 truncate">{user?.primaryEmailAddress?.emailAddress}</div>
+                  <div className="font-medium text-white">
+                    {user?.fullName || user?.username}
+                  </div>
+                  <div className="text-xs text-white/50 truncate">
+                    {user?.primaryEmailAddress?.emailAddress}
+                  </div>
                 </div>
-                
+
                 <button
                   onClick={() => {
                     setIsOpen(false);
-                    navigate('/user');
+                    navigate("/user");
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
                 >
                   <User className="w-4 h-4" />
                   Profile
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    navigate('/upload');
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
-                >
-                  <Upload className="w-4 h-4" />
-                  Uploader portal
-                </button>
+
+                {isUploader && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate("/upload");
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Uploader portal
+                  </button>
+                )}
 
                 <button
                   onClick={() => {
                     setIsOpen(false);
-                    navigate('/settings');
+                    navigate("/settings");
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded flex items-center gap-2 transition-colors"
                 >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setIsOpen(false);

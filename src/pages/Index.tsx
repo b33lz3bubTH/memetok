@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 import VideoFeed from "@/components/VideoFeed";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { accessApi } from "@/lib/api";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { getToken, isSignedIn } = useAuth();
+  const { user } = useUser();
   const [isUploader, setIsUploader] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isSignedIn) {
+    if (isSignedIn && user) {
       getToken()
         .then((token) => {
-          if (token) return accessApi.me(token);
+          if (token)
+            return accessApi.me(token, user.primaryEmailAddress?.emailAddress);
           return null;
         })
         .then((res) => {

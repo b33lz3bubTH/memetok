@@ -6,14 +6,14 @@ type RequestType = 'query' | 'mutation';
 type QueryPayload = {
   [PostsQueryAction.LIST_POSTS]: { take?: number; skip?: number };
   [PostsQueryAction.GET_POST]: { postId: string };
-  [PostsQueryAction.LIST_USER_POSTS]: { userId: string; take?: number; skip?: number };
+  [PostsQueryAction.LIST_USER_POSTS]: { userId: string; email?: string; take?: number; skip?: number };
   [PostsQueryAction.GET_POST_STATS]: { postId: string };
   [PostsQueryAction.LIST_COMMENTS]: { postId: string; take?: number; skip?: number };
   [PostsQueryAction.LIST_SAVED_POSTS]: { take?: number; skip?: number };
   [UploadersQueryAction.LIST_UPLOADERS]: {};
   [UploadersQueryAction.GET_UPLOADER]: { uploaderId: string };
   [UploadersQueryAction.VALIDATE_API_KEY]: { email: string; apiKey: string };
-  [UploadersQueryAction.GET_MY_ACCESS]: {};
+  [UploadersQueryAction.GET_MY_ACCESS]: { email?: string };
 };
 
 type MutationPayload = {
@@ -141,8 +141,8 @@ class ApiClient {
       return this.execute<{ isValid: boolean }>('query', UploadersQueryAction.VALIDATE_API_KEY, payload);
     },
 
-    getMyAccess: async () => {
-      return this.execute<{ userId: string; isUploader: boolean }>('query', UploadersQueryAction.GET_MY_ACCESS);
+    getMyAccess: async (payload: { email?: string } = {}) => {
+      return this.execute<{ userId: string; isUploader: boolean }>('query', UploadersQueryAction.GET_MY_ACCESS, payload);
     },
   };
 

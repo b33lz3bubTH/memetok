@@ -53,7 +53,9 @@ def register_posts_handlers(svc: PostsService) -> None:
                 raise HTTPException(status_code=401, detail="authentication required")
             
             user_id = user.user_id
-            email = user.email
+            email = user.email or payload.get("email")
+            if isinstance(email, str):
+                email = email.lower()
             
             access_service = get_access_control_service()
             is_uploader = await access_service.is_uploader_user(email)

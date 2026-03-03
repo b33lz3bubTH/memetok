@@ -67,7 +67,10 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
         if not user:
             raise HTTPException(status_code=401, detail="authentication required")
         
-        email = user.email
+        email = user.email or payload.get("email")
+        if isinstance(email, str):
+            email = email.lower()
+            
         from core.resources.posts.access_control import get_access_control_service
         access_service = get_access_control_service()
         is_uploader = await access_service.is_uploader_user(email)

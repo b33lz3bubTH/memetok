@@ -125,9 +125,9 @@ export const media = {
 };
 
 export const accessApi = {
-  async me(token: string): Promise<{ userId: string; isUploader: boolean }> {
+  async me(token: string, email?: string): Promise<{ userId: string; isUploader: boolean }> {
     apiClient.setToken(token);
-    return apiClient.query.getMyAccess();
+    return apiClient.query.getMyAccess({ email });
   },
 };
 
@@ -212,8 +212,8 @@ export const postsApi = {
     return apiClient.mutation.addComment({ postId, text, firstName });
   },
 
-  async listByUser(userId: string, take = 50, skip = 0) {
-    return apiClient.query.listUserPosts({ userId, take, skip });
+  async listByUser(userId: string, take = 50, skip = 0, email?: string) {
+    return apiClient.query.listUserPosts({ userId, take, skip, email });
   },
 
   async listSaved(token: string, take = 50, skip = 0) {

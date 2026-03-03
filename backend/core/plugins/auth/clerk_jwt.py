@@ -85,7 +85,7 @@ async def verify_clerk_bearer_token(token: str) -> AuthClaims:
     if not sub:
         raise AuthError("missing sub")
 
-    email = claims.get("email")
+    email = claims.get("email") or claims.get("primary_email_address")
     if not email:
         maybe_emails = claims.get("email_addresses") or []
         if isinstance(maybe_emails, list) and maybe_emails:
