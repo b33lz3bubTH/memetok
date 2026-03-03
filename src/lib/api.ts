@@ -201,8 +201,8 @@ export const postsApi = {
     return apiClient.mutation.addComment({ postId, text, firstName }, { token });
   },
 
-  async listByUser(userId: string, take = 50, skip = 0, email?: string) {
-    return apiClient.query.listUserPosts({ userId, take, skip, email });
+  async listByUser(userId: string, take = 50, skip = 0, email?: string, token?: string) {
+    return apiClient.query.listUserPosts({ userId, take, skip, email }, { token });
   },
 
   async listSaved(token: string, take = 50, skip = 0) {

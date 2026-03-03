@@ -46,6 +46,7 @@ const UserProfile = () => {
               take,
               skip,
               user.primaryEmailAddress?.emailAddress,
+              token,
             );
             setPosts(own.items);
             setTotalPosts(own.total || 0);
