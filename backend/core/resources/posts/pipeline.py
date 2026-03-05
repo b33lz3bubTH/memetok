@@ -132,6 +132,9 @@ class UploadPipeline:
             await self.posts_repo.update_media(context.post_id, context.media_items)
             await self.posts_repo.set_status(context.post_id, "posted")
             logger.info("stage2: post updated to posted post_id=%s media_count=%s", context.post_id, len(context.media_items))
+        elif context.errors:
+            await self.posts_repo.set_status(context.post_id, "failed")
+            logger.warning("stage2: post failed due to upload errors post_id=%s", context.post_id)
         else:
             await self.posts_repo.set_status(context.post_id, "pending")
             logger.warning("stage2: no media items uploaded post_id=%s", context.post_id)

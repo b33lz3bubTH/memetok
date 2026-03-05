@@ -39,12 +39,13 @@ class PostDTO(BaseModel):
     caption: str
     description: str
     tags: List[str]
-    status: Literal["pending", "posted"]
+    status: Literal["pending", "posted", "failed"]
     createdAt: datetime
     author: AuthorDTO
     stats: Optional[StatsDTO] = None
     likedByUser: bool = False
     savedByUser: bool = False
+    error: Optional[str] = None
 
 
 class PostStatsDTO(BaseModel):
@@ -59,12 +60,13 @@ class PostListDTO(BaseModel):
     caption: str
     description: str = ""
     tags: List[str]
-    status: Literal["pending", "posted"]
+    status: Literal["pending", "posted", "failed"]
     createdAt: datetime
     author: AuthorDTO
     stats: Optional[StatsDTO] = None
     likedByUser: bool = False
     savedByUser: bool = False
+    error: Optional[str] = None
 
 
 class ListPostsResponse(BaseModel):

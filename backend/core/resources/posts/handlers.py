@@ -10,13 +10,14 @@ from core.resources.posts.actions import PostsQueryAction, PostsMutationAction
 from core.resources.posts.service import PostsService
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.access_control import get_access_control_service
+from core.resources.posts.upload_errors_repository import UploadErrorsRepository
 from core.services.cqrs.handler_registry import query_registry, mutation_registry
 
 
 logger = get_logger(__name__)
 
 
-def register_posts_handlers(svc: PostsService) -> None:
+def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsRepository) -> None:
     async def handle_list_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             take = int(payload.get("take", 10))
@@ -220,6 +221,48 @@ def register_posts_handlers(svc: PostsService) -> None:
             logger.warning("delete_post forbidden post_id=%s user_id=%s", post_id, user_id)
             raise HTTPException(status_code=403, detail=str(e)) from e
 
+    async def handle_list_upload_errors(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            auth = payload.get("__auth", {})
+            authenticated = auth.get("authenticated", False) if isinstance(auth, dict) else bool(auth)
+            if not authenticated:
+                raise HTTPException(status_code=401, detail="authentication required")
+            user = auth.get("user")
+            if not user:
+                raise HTTPException(status_code=401, detail="authentication required")
+
+            user_id = user.user_id
+            email = user.email or payload.get("email")
+            if isinstance(email, str):
+                email = email.lower()
+
+            access_service = get_access_control_service()
+            is_uploader = await access_service.is_uploader_user(email)
+            if not is_uploader:
+                raise HTTPException(status_code=403, detail="upload logs are only available for uploaders")
+
+            take = int(payload.get("take", 50))
+            skip = int(payload.get("skip", 0))
+            take = max(1, min(take, 100))
+            skip = max(0, skip)
+
+            logger.info("list_upload_errors user_id=%s take=%s skip=%s", user_id, take, skip)
+            items = await errors_repo.find_by_user_id(user_id=user_id, limit=take, skip=skip)
+            total = await errors_repo.count_by_user_id(user_id=user_id)
+
+            # Convert MongoDB dicts (with _id) to clean dicts for API
+            result_items = []
+            for item in items:
+                clean_item = {k: v for k, v in item.items() if k != "_id"}
+                if "createdAt" in clean_item and not isinstance(clean_item["createdAt"], str):
+                    clean_item["createdAt"] = clean_item["createdAt"].isoformat()
+                result_items.append(clean_item)
+
+            return {"items": result_items, "take": take, "skip": skip, "total": total}
+        except PyMongoError as e:
+            logger.exception("list_upload_errors db error")
+            raise HTTPException(status_code=503, detail="db unavailable") from e
+
     query_registry.register(PostsQueryAction.LIST_POSTS, handle_list_posts)
     query_registry.register(PostsQueryAction.GET_POST, handle_get_post)
     query_registry.register(PostsQueryAction.LIST_USER_POSTS, handle_list_user_posts)
@@ -227,6 +270,7 @@ def register_posts_handlers(svc: PostsService) -> None:
     query_registry.register(PostsQueryAction.LIST_COMMENTS, handle_list_comments)
     query_registry.register(PostsQueryAction.LIST_SAVED_POSTS, handle_list_saved_posts)
     query_registry.register(PostsQueryAction.SEARCH_POSTS, handle_search_posts)
+    query_registry.register(PostsQueryAction.LIST_UPLOAD_ERRORS, handle_list_upload_errors)
 
     mutation_registry.register(PostsMutationAction.TOGGLE_LIKE, handle_toggle_like)
     mutation_registry.register(PostsMutationAction.ADD_COMMENT, handle_add_comment)

@@ -28,6 +28,7 @@ type QueryPayload = {
   [UploadersQueryAction.GET_UPLOADER]: { uploaderId: string };
   [UploadersQueryAction.VALIDATE_API_KEY]: { email: string; apiKey: string };
   [UploadersQueryAction.GET_MY_ACCESS]: { email?: string };
+  [PostsQueryAction.LIST_UPLOAD_ERRORS]: { take?: number; skip?: number; email?: string };
 };
 
 export type ApiAuthor = {
@@ -42,7 +43,7 @@ export type ApiPost = {
   caption: string;
   description: string;
   tags: string[];
-  status: "pending" | "posted";
+  status: "pending" | "posted" | "failed";
   createdAt: string;
   author: ApiAuthor;
   stats?: { likes: number; comments: number };
@@ -56,6 +57,14 @@ export type ApiComment = {
   text: string;
   firstName?: string;
   createdAt: string;
+};
+export type ApiUploadError = {
+  postId: string;
+  userId: string;
+  filename: string;
+  error: string;
+  createdAt: string;
+  hash?: string;
 };
 
 type MutationPayload = {
@@ -241,6 +250,17 @@ class ApiClient {
         payload,
         opts,
       );
+    },
+    listUploadErrors: async (
+      payload: QueryPayload[typeof PostsQueryAction.LIST_UPLOAD_ERRORS] = {},
+      opts?: { token?: string },
+    ) => {
+      return this.execute<{
+        items: ApiUploadError[];
+        take: number;
+        skip: number;
+        total?: number;
+      }>("query", PostsQueryAction.LIST_UPLOAD_ERRORS, payload, opts);
     },
   };
 

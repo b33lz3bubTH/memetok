@@ -1,6 +1,6 @@
 import { env } from '@/lib/env';
 import { cache } from '@/lib/cache';
-import { apiClient, ApiPost } from '@/lib/api-client';
+import { apiClient, ApiPost, ApiUploadError } from '@/lib/api-client';
 
 export type MediaType = 'video' | 'image';
 
@@ -10,6 +10,7 @@ export type MediaItem = {
 };
 
 export type Post = ApiPost;
+export type UploadError = ApiUploadError;
 
 
 export type PostStats = {
@@ -223,5 +224,8 @@ export const postsApi = {
 
   async delete(postId: string) {
     return apiClient.mutation.deletePost({ postId });
+  },
+  async listUploadErrors(token: string, take = 50, skip = 0, email?: string) {
+    return apiClient.query.listUploadErrors({ take, skip, email }, { token });
   },
 };

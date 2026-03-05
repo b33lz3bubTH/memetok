@@ -5,6 +5,7 @@ export const PostsQueryAction = {
   GET_POST_STATS: 'get_post_stats',
   LIST_COMMENTS: 'list_comments',
   LIST_SAVED_POSTS: 'list_saved_posts',
+  LIST_UPLOAD_ERRORS: 'list_upload_errors',
 } as const;
 
 export const PostsMutationAction = {

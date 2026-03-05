@@ -95,8 +95,8 @@ export interface VideoPost {
 }
 
 export const APP_CONFIG = {
-  appName: 'Memetok',
-  version: '1.0.0',
+  appName: 'Memetok - New Media Libs',
+  version: '2.0.0',
   maxVideosToLoad: 5,
   intersectionThreshold: 0.5,
   animationDuration: 0.3,

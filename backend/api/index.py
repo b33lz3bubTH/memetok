@@ -21,6 +21,7 @@ from core.services.cqrs.event_bus import get_event_bus
 from core.resources.posts.handlers import register_posts_handlers
 from core.resources.posts.service import PostsService
 from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
+from core.resources.posts.upload_errors_repository import UploadErrorsRepository
 from core.resources.uploaders.service import UploaderService
 from core.resources.uploaders.handlers import register_uploaders_handlers
 from core.plugins.security import SecurityHeadersMiddleware, RateLimitMiddleware, RequestTimeoutMiddleware
@@ -123,7 +124,7 @@ async def lifespan(app: FastAPI):
         saved_posts_repo=saved_posts_repo,
         jobs_service=jobs_service,
     )
-    register_posts_handlers(posts_service)
+    register_posts_handlers(posts_service, UploadErrorsRepository())
     logger.info("posts handlers registered")
 
     # cleanup any dangling posts from previous crashes

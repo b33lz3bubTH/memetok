@@ -19,12 +19,17 @@ class UploadErrorsRepository:
         mongo = get_mongo()
         return await mongo.db[UPLOAD_ERRORS_COLLECTION].find_one({"postId": post_id})
 
-    async def find_by_user_id(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def find_by_user_id(self, user_id: str, limit: int = 50, skip: int = 0) -> List[Dict[str, Any]]:
         mongo = get_mongo()
         cursor = (
             mongo.db[UPLOAD_ERRORS_COLLECTION]
             .find({"userId": user_id})
             .sort("createdAt", -1)
+            .skip(skip)
             .limit(limit)
         )
         return [d async for d in cursor]
+
+    async def count_by_user_id(self, user_id: str) -> int:
+        mongo = get_mongo()
+        return await mongo.db[UPLOAD_ERRORS_COLLECTION].count_documents({"userId": user_id})

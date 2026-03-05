@@ -41,7 +41,7 @@ class PostsRepository:
 
     async def count_posts_by_user(self, user_id: str) -> int:
         mongo = get_mongo()
-        count = await mongo.db[POSTS_COLLECTION].count_documents({"author.userId": user_id, "status": POST_STATUS_POSTED})
+        count = await mongo.db[POSTS_COLLECTION].count_documents({"author.userId": user_id, "status": {"$ne": "deleted"}})
         return count
 
     async def find_latest_posted(self, take: int, skip: int) -> List[Dict[str, Any]]:
@@ -57,11 +57,11 @@ class PostsRepository:
         return [d async for d in cursor]
 
     async def find_by_user_id(self, user_id: str, take: int, skip: int) -> List[Dict[str, Any]]:
-        """Show all uploader posts (pending + posted) so they can see their own drafts."""
+        """Show all uploader posts (pending + posted + failed) so they can see their own drafts and errors."""
         mongo = get_mongo()
         cursor = (
             mongo.db[POSTS_COLLECTION]
-            .find({"author.userId": user_id})
+            .find({"author.userId": user_id, "status": {"$ne": "deleted"}})
             .sort("createdAt", -1)
             .skip(skip)
             .limit(take)

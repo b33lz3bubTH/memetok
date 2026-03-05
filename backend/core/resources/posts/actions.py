@@ -11,6 +11,7 @@ class PostsQueryAction(str, Enum):
     LIST_COMMENTS = "list_comments"
     LIST_SAVED_POSTS = "list_saved_posts"
     SEARCH_POSTS = "search_posts"
+    LIST_UPLOAD_ERRORS = "list_upload_errors"
 
 
 class PostsMutationAction(str, Enum):
