@@ -4,6 +4,7 @@ import { Loader2, Upload, X } from "lucide-react";
 import { useAppDispatch } from "@/store/hooks";
 import { fetchFeed } from "@/store/slices/feedSlice";
 import { media, postsApi, type MediaType } from "@/lib/api";
+import { processMediaFile } from "@/lib/mediaProcessor";
 import { toast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ export default function CreatePostModal({
   const [tagsRaw, setTagsRaw] = useState("");
 
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [overallPct, setOverallPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [doneCount, setDoneCount] = useState(0);
@@ -109,6 +111,7 @@ export default function CreatePostModal({
     setDescription("");
     setTagsRaw("");
     setIsUploading(false);
+    setIsProcessing(false);
     setOverallPct(0);
     setError(null);
     setDoneCount(0);
@@ -191,6 +194,7 @@ export default function CreatePostModal({
     }
 
     setIsUploading(true);
+    setIsProcessing(true);
     setError(null);
     setDoneCount(0);
     setOverallPct(0);
@@ -199,8 +203,21 @@ export default function CreatePostModal({
     abortRef.current = abort;
 
     try {
+      // Process media files (watermark images)
+      const processedFiles: File[] = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const processed = await processMediaFile(files[i]);
+          processedFiles.push(processed);
+        } catch (procErr) {
+          console.warn(`Media processing failed for ${files[i].name}, using original:`, procErr);
+          processedFiles.push(files[i]); // fallback to original if processing fails
+        }
+      }
+      setIsProcessing(false);
+
       await media.uploadWithProgress(
-        files,
+        processedFiles,
         {
           signal: abort.signal,
           onProgress: (pct) => {
@@ -227,6 +244,7 @@ export default function CreatePostModal({
       return;
     } finally {
       setIsUploading(false);
+      setIsProcessing(false);
       abortRef.current = null;
     }
 
@@ -504,13 +522,25 @@ export default function CreatePostModal({
                 {(isUploading || doneCount > 0) && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{isUploading ? "Uploading…" : "Done"}</span>
-                      <span>{Math.round(overallPct)}%</span>
+                      <span>
+                        {isProcessing
+                          ? "Processing media (watermarking)…"
+                          : isUploading
+                            ? "Uploading…"
+                            : "Done"}
+                      </span>
+                      {!isProcessing && <span>{Math.round(overallPct)}%</span>}
                     </div>
-                    <Progress value={overallPct} />
-                    <div className="text-xs text-muted-foreground">
-                      {doneCount}/{files.length} complete
-                    </div>
+                    {isProcessing ? (
+                      <Progress value={undefined} className="animate-pulse" />
+                    ) : (
+                      <Progress value={overallPct} />
+                    )}
+                    {!isProcessing && (
+                      <div className="text-xs text-muted-foreground">
+                        {doneCount}/{files.length} complete
+                      </div>
+                    )}
                   </div>
                 )}
 
