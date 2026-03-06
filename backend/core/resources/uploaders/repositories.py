@@ -2,27 +2,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from database.mongo_factory import get_mongo
 from core.resources.uploaders.constants import UPLOADERS_COLLECTION, API_KEYS_COLLECTION
+from core.resources.uploaders.types import ApiKeyDoc, UploaderDoc
 
 
 @dataclass
 class UploadersRepository:
-    async def insert(self, doc: Dict[str, Any]) -> None:
+    async def insert(self, doc: UploaderDoc) -> None:
         mongo = get_mongo()
         await mongo.db[UPLOADERS_COLLECTION].insert_one(doc)
 
-    async def find_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+    async def find_by_email(self, email: str) -> Optional[UploaderDoc]:
         mongo = get_mongo()
         return await mongo.db[UPLOADERS_COLLECTION].find_one({"email": email})
 
-    async def find_by_id(self, uploader_id: str) -> Optional[Dict[str, Any]]:
+    async def find_by_id(self, uploader_id: str) -> Optional[UploaderDoc]:
         mongo = get_mongo()
         return await mongo.db[UPLOADERS_COLLECTION].find_one({"id": uploader_id})
 
-    async def list_all(self) -> List[Dict[str, Any]]:
+    async def list_all(self) -> list[UploaderDoc]:
         mongo = get_mongo()
         cursor = mongo.db[UPLOADERS_COLLECTION].find({}).sort("createdAt", -1)
         return [d async for d in cursor]
@@ -42,15 +43,15 @@ class UploadersRepository:
 
 @dataclass
 class ApiKeysRepository:
-    async def insert(self, doc: Dict[str, Any]) -> None:
+    async def insert(self, doc: ApiKeyDoc) -> None:
         mongo = get_mongo()
         await mongo.db[API_KEYS_COLLECTION].insert_one(doc)
 
-    async def find_by_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
+    async def find_by_hash(self, key_hash: str) -> Optional[ApiKeyDoc]:
         mongo = get_mongo()
         return await mongo.db[API_KEYS_COLLECTION].find_one({"key_hash": key_hash, "status": "active"})
 
-    async def list_by_uploader(self, uploader_id: str) -> List[Dict[str, Any]]:
+    async def list_by_uploader(self, uploader_id: str) -> list[ApiKeyDoc]:
         mongo = get_mongo()
         cursor = mongo.db[API_KEYS_COLLECTION].find({"uploader_id": uploader_id}).sort("createdAt", -1)
         return [d async for d in cursor]

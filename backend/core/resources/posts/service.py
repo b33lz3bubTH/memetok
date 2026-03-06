@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from datetime import datetime
+from typing import List, Protocol
 from uuid import uuid4
 
 from common.app_constants import POST_STATUS_PENDING
 from database.mongo_common import now_utc
 from core.resources.jobs.service import JobsService
-from core.resources.posts.dtos import CommentDTO, MediaType, MediaItem, PostDTO, PostListDTO, PostStatsDTO
+from core.resources.posts.dtos import CommentDTO, PostDTO, PostListDTO, PostStatsDTO
 from core.resources.posts.exceptions import PostNotFoundError
-from core.resources.posts.repositories import CommentsRepository, LikesRepository, PostsRepository, SavedPostsRepository
+from core.resources.posts.types import CommentDoc, PostDoc
 from core.resources.posts.validators import normalize_tags
 from core.logger.logger import get_logger
 
@@ -17,12 +18,43 @@ from core.logger.logger import get_logger
 logger = get_logger(__name__)
 
 
+class PostsRepositoryProtocol(Protocol):
+    async def insert(self, doc: PostDoc) -> None: ...
+    async def find_latest_posted(self, take: int, skip: int) -> list[PostDoc]: ...
+    async def find_by_user_id(self, user_id: str, take: int, skip: int) -> list[PostDoc]: ...
+    async def count_posts_by_user(self, user_id: str) -> int: ...
+    async def find_by_ids(self, post_ids: list[str]) -> list[PostDoc]: ...
+    async def find_by_id(self, post_id: str) -> PostDoc | None: ...
+    async def inc_counts(self, post_id: str, likes_delta: int = 0, comments_delta: int = 0) -> PostDoc | None: ...
+    async def soft_delete(self, post_id: str) -> None: ...
+    async def search(self, query: str, take: int, skip: int) -> list[PostDoc]: ...
+
+
+class LikesRepositoryProtocol(Protocol):
+    async def list_liked_post_ids(self, user_id: str, post_ids: list[str]) -> list[str]: ...
+    async def exists(self, post_id: str, user_id: str) -> bool: ...
+    async def toggle(self, post_id: str, user_id: str, now: datetime) -> bool: ...
+    async def list_all_liked(self, user_id: str) -> dict[str, datetime]: ...
+
+
+class SavedPostsRepositoryProtocol(Protocol):
+    async def list_saved_post_ids_for_posts(self, user_id: str, post_ids: list[str]) -> list[str]: ...
+    async def exists(self, post_id: str, user_id: str) -> bool: ...
+    async def toggle(self, post_id: str, user_id: str, now: datetime) -> bool: ...
+    async def list_all_saved(self, user_id: str) -> dict[str, datetime]: ...
+
+
+class CommentsRepositoryProtocol(Protocol):
+    async def insert(self, doc: CommentDoc) -> None: ...
+    async def find_latest(self, post_id: str, take: int, skip: int) -> list[CommentDoc]: ...
+
+
 @dataclass
 class PostsService:
-    posts_repo: PostsRepository
-    likes_repo: LikesRepository
-    comments_repo: CommentsRepository
-    saved_posts_repo: SavedPostsRepository
+    posts_repo: PostsRepositoryProtocol
+    likes_repo: LikesRepositoryProtocol
+    comments_repo: CommentsRepositoryProtocol
+    saved_posts_repo: SavedPostsRepositoryProtocol
     jobs_service: JobsService
 
     async def create_post(self, user_id: str, caption: str, description: str, tags: list[str], username: str | None = None, profile_photo: str | None = None) -> PostDTO:

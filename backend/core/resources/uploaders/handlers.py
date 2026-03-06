@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import hmac
-from typing import Any, Dict
+from typing import Any, Dict, TypeVar
 
 from fastapi import HTTPException
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pymongo.errors import PyMongoError
 
 from core.logger.logger import get_logger
@@ -17,12 +17,15 @@ from core.resources.uploaders.dtos import (
     UploaderStatusUpdateRequest,
 )
 from core.resources.uploaders.service import UploaderService
-from core.services.cqrs.handler_registry import mutation_registry, query_registry
+from core.services.cqrs.handler_registry import Payload, mutation_registry, query_registry
 
 logger = get_logger(__name__)
 
 
-def _parse_payload(payload_model, payload: Dict[str, Any]):
+PayloadDTO = TypeVar("PayloadDTO", bound=BaseModel)
+
+
+def _parse_payload(payload_model: type[PayloadDTO], payload: Payload) -> PayloadDTO:
     try:
         return payload_model.model_validate(payload)
     except ValidationError as exc:
@@ -45,7 +48,7 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
             logger.warning("unauthorized super admin attempt")
             raise HTTPException(status_code=401, detail="unauthorized super admin")
 
-    async def handle_list_uploaders(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_uploaders(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(UploadersPayloadDTO, payload)
             _check_super_admin(req)
@@ -67,12 +70,12 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
             logger.exception("list_uploaders db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_validate_api_key(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_validate_api_key(payload: Payload) -> Dict[str, Any]:
         req = _parse_payload(ApiKeyValidationRequest, payload)
         is_valid = await svc.validate_api_key(req)
         return {"isValid": is_valid}
 
-    async def handle_get_my_access(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_get_my_access(payload: Payload) -> Dict[str, Any]:
         req = _parse_payload(UploadersPayloadDTO, payload)
         user = req.auth.user
         if not user:
@@ -89,7 +92,7 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
 
         return {"userId": user.user_id, "isUploader": is_uploader}
 
-    async def handle_create_uploader(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_create_uploader(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(UploaderCreateRequest, payload)
             auth_req = _parse_payload(UploadersPayloadDTO, payload)
@@ -108,14 +111,14 @@ def register_uploaders_handlers(svc: UploaderService) -> None:
             logger.exception("create_uploader db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_update_uploader_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_update_uploader_status(payload: Payload) -> Dict[str, Any]:
         auth_req = _parse_payload(UploadersPayloadDTO, payload)
         _check_super_admin(auth_req)
         req = _parse_payload(UploaderStatusUpdateRequest, payload)
         await svc.update_status(req)
         return {"success": True}
 
-    async def handle_revoke_api_key(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_revoke_api_key(payload: Payload) -> Dict[str, Any]:
         auth_req = _parse_payload(UploadersPayloadDTO, payload)
         _check_super_admin(auth_req)
         req = _parse_payload(UploaderIdRequest, payload)

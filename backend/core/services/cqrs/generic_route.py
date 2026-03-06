@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel, Field
 
 from core.logger.logger import get_logger
-from core.services.cqrs.handler_registry import query_registry, mutation_registry, UnknownActionError
+from core.services.cqrs.handler_registry import Payload, query_registry, mutation_registry, UnknownActionError
 from core.plugins.auth.clerk_jwt import AuthError, verify_clerk_bearer_token
 from core.plugins.auth.models import AuthUser
 
@@ -20,7 +20,7 @@ RequestType = Literal["query", "mutation"]
 class GenericRequest(BaseModel):
     type: RequestType
     action: str = Field(min_length=1)
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: Payload = Field(default_factory=dict)
 
 
 router = APIRouter(tags=["cqrs"])

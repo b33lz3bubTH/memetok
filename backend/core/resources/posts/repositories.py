@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from pymongo import ReturnDocument, ASCENDING, DESCENDING, TEXT
 
 from database.mongo_factory import get_mongo
 from core.resources.posts.constants import COMMENTS_COLLECTION, LIKES_COLLECTION, POSTS_COLLECTION, SAVED_POSTS_COLLECTION
 from common.app_constants import POST_STATUS_POSTED
+from core.resources.posts.types import CommentDoc, MediaItemDoc, PostDoc
 
 
 @dataclass
@@ -30,7 +31,7 @@ class PostsRepository:
         except Exception:
             pass  # index likely already exists with a different spec
 
-    async def insert(self, doc: Dict[str, Any]) -> None:
+    async def insert(self, doc: PostDoc) -> None:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].insert_one(doc)
 
@@ -44,7 +45,7 @@ class PostsRepository:
         count = await mongo.db[POSTS_COLLECTION].count_documents({"author.userId": user_id, "status": {"$ne": "deleted"}})
         return count
 
-    async def find_latest_posted(self, take: int, skip: int) -> List[Dict[str, Any]]:
+    async def find_latest_posted(self, take: int, skip: int) -> List[PostDoc]:
         """Include stats in feed response — eliminates N+1 stat requests."""
         mongo = get_mongo()
         cursor = (
@@ -56,7 +57,7 @@ class PostsRepository:
         )
         return [d async for d in cursor]
 
-    async def find_by_user_id(self, user_id: str, take: int, skip: int) -> List[Dict[str, Any]]:
+    async def find_by_user_id(self, user_id: str, take: int, skip: int) -> List[PostDoc]:
         """Show all uploader posts (pending + posted + failed) so they can see their own drafts and errors."""
         mongo = get_mongo()
         cursor = (
@@ -68,7 +69,7 @@ class PostsRepository:
         )
         return [d async for d in cursor]
 
-    async def search(self, query: str, take: int, skip: int) -> List[Dict[str, Any]]:
+    async def search(self, query: str, take: int, skip: int) -> List[PostDoc]:
         """Full-text search across caption, description and tags."""
         mongo = get_mongo()
         cursor = (
@@ -93,12 +94,12 @@ class PostsRepository:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].delete_one({"id": post_id})
 
-    async def find_by_id(self, post_id: str) -> Optional[Dict[str, Any]]:
+    async def find_by_id(self, post_id: str) -> Optional[PostDoc]:
         mongo = get_mongo()
         return await mongo.db[POSTS_COLLECTION].find_one({"id": post_id})
 
 
-    async def find_by_ids(self, post_ids: List[str]) -> List[Dict[str, Any]]:
+    async def find_by_ids(self, post_ids: List[str]) -> List[PostDoc]:
         """Batch fetch posted posts by id list — avoids N+1 for saved posts."""
         if not post_ids:
             return []
@@ -112,13 +113,13 @@ class PostsRepository:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].update_one({"id": post_id}, {"$set": {"status": status}})
 
-    async def update_media(self, post_id: str, media_items: List[Dict[str, Any]]) -> None:
+    async def update_media(self, post_id: str, media_items: List[MediaItemDoc]) -> None:
         mongo = get_mongo()
         await mongo.db[POSTS_COLLECTION].update_one({"id": post_id}, {"$set": {"media": media_items}})
 
-    async def inc_counts(self, post_id: str, likes_delta: int = 0, comments_delta: int = 0) -> Dict[str, Any] | None:
+    async def inc_counts(self, post_id: str, likes_delta: int = 0, comments_delta: int = 0) -> PostDoc | None:
         mongo = get_mongo()
-        update: Dict[str, Any] = {"$inc": {}}
+        update: dict[str, Any] = {"$inc": {}}
         if likes_delta:
             update["$inc"]["stats.likes"] = likes_delta
         if comments_delta:
@@ -155,14 +156,14 @@ class LikesRepository:
         return doc is not None
 
 
-    async def list_liked_post_ids(self, user_id: str, post_ids: List[str]) -> List[str]:
+    async def list_liked_post_ids(self, user_id: str, post_ids: List[str]) -> list[str]:
         if not post_ids:
             return []
         mongo = get_mongo()
         cursor = mongo.db[LIKES_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
         return [d["postId"] async for d in cursor]
 
-    async def list_all_liked(self, user_id: str) -> Dict[str, datetime]:
+    async def list_all_liked(self, user_id: str) -> dict[str, datetime]:
         mongo = get_mongo()
         cursor = mongo.db[LIKES_COLLECTION].find({"userId": user_id}, {"_id": 0, "postId": 1, "createdAt": 1})
         return {d["postId"]: d.get("createdAt", datetime.min) async for d in cursor}
@@ -190,7 +191,7 @@ class SavedPostsRepository:
         doc = await mongo.db[SAVED_POSTS_COLLECTION].find_one({"postId": post_id, "userId": user_id})
         return doc is not None
 
-    async def list_saved_post_ids(self, user_id: str, take: int, skip: int) -> List[str]:
+    async def list_saved_post_ids(self, user_id: str, take: int, skip: int) -> list[str]:
         mongo = get_mongo()
         cursor = (
             mongo.db[SAVED_POSTS_COLLECTION]
@@ -205,25 +206,25 @@ class SavedPostsRepository:
         mongo = get_mongo()
         return await mongo.db[SAVED_POSTS_COLLECTION].count_documents({"userId": user_id})
 
-    async def list_saved_post_ids_for_posts(self, user_id: str, post_ids: List[str]) -> List[str]:
+    async def list_saved_post_ids_for_posts(self, user_id: str, post_ids: List[str]) -> list[str]:
         if not post_ids:
             return []
         mongo = get_mongo()
         cursor = mongo.db[SAVED_POSTS_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
         return [d["postId"] async for d in cursor]
 
-    async def list_all_saved(self, user_id: str) -> Dict[str, datetime]:
+    async def list_all_saved(self, user_id: str) -> dict[str, datetime]:
         mongo = get_mongo()
         cursor = mongo.db[SAVED_POSTS_COLLECTION].find({"userId": user_id}, {"_id": 0, "postId": 1, "createdAt": 1})
         return {d["postId"]: d.get("createdAt", datetime.min) async for d in cursor}
 
 @dataclass
 class CommentsRepository:
-    async def insert(self, doc: Dict[str, Any]) -> None:
+    async def insert(self, doc: CommentDoc) -> None:
         mongo = get_mongo()
         await mongo.db[COMMENTS_COLLECTION].insert_one(doc)
 
-    async def find_latest(self, post_id: str, take: int, skip: int) -> List[Dict[str, Any]]:
+    async def find_latest(self, post_id: str, take: int, skip: int) -> list[CommentDoc]:
         mongo = get_mongo()
         cursor = (
             mongo.db[COMMENTS_COLLECTION]
