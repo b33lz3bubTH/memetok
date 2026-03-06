@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { VideoPost } from '@/config/appConfig';
 import { useAppSelector } from '@/store/hooks';
+import { postsApi, Comment } from '@/lib/api';
+import { cache } from '@/lib/cache';
 
 interface VideoOverlayProps {
   video: VideoPost;
@@ -9,6 +12,28 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
   const { isCommentDrawerOpen, activeVideoId } = useAppSelector((state) => state.ui);
   const isCommentsOpen = isCommentDrawerOpen && activeVideoId === video.id;
   const hasDescription = video.description && video.description.trim().length > 0;
+
+  const [comments, setComments] = useState<Comment[]>([]);
+
+  useEffect(() => {
+    if (activeVideoId === video.id) {
+      (async () => {
+        try {
+          const cached = await cache.getComments(video.id);
+          if (cached && cached.length > 0) {
+            setComments(cached.slice(0, 4));
+          } else {
+            const r = await postsApi.listComments(video.id, 4, 0);
+            setComments(r.items);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      })();
+    } else {
+      setComments([]);
+    }
+  }, [activeVideoId, video.id]);
 
   return (
     <div className="absolute bottom-0 left-0 right-16 z-10 p-4 pb-6 w-full">
@@ -39,6 +64,27 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
           <p className={`text-white/90 text-sm mb-3 ${isCommentsOpen ? '' : 'line-clamp-2'}`}>
             {video.description}
           </p>
+        )}
+
+        {/* Comments Summary */}
+        {!isCommentsOpen && comments.length > 0 && (
+          <div className="mb-3 space-y-1.5 backdrop-blur-sm bg-black/10 rounded-xl p-2 w-max max-w-[85%]">
+            {comments.slice(0, 4).map((comment) => (
+              <div key={comment.id} className="flex items-center gap-2">
+                <img
+                  src={`https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${comment.userId}`}
+                  alt={comment.firstName || "User"}
+                  className="w-5 h-5 rounded-full flex-shrink-0 bg-white/5 border-white/10"
+                />
+                <span className="text-white/80 font-medium text-xs whitespace-nowrap">
+                  {comment.firstName || comment.userId.slice(-6)}
+                </span>
+                <span className="text-white text-xs line-clamp-1 break-all">
+                  {comment.text}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Tags */}
