@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
+from core.resources.uploaders.types import ApiKeyDoc, UploaderDoc
+
 
 @dataclass
 class ApiKey:
@@ -15,7 +17,7 @@ class ApiKey:
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     revoked_at: Optional[datetime] = None
 
-    def to_dict(self):
+    def to_dict(self) -> ApiKeyDoc:
         return {
             "id": self.id,
             "uploader_id": self.uploader_id,
@@ -27,7 +29,7 @@ class ApiKey:
         }
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: ApiKeyDoc):
         return cls(
             id=data.get("id"),
             uploader_id=data.get("uploader_id"),
@@ -47,7 +49,7 @@ class Uploader:
     name: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
-    def to_dict(self):
+    def to_dict(self) -> UploaderDoc:
         return {
             "id": self.id,
             "email": self.email,
@@ -57,7 +59,7 @@ class Uploader:
         }
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: UploaderDoc):
         return cls(
             id=data.get("id"),
             email=data.get("email"),

@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Protocol
 
 from core.resources.uploaders.dtos import (
     ApiKeyValidationRequest,
@@ -13,16 +13,30 @@ from core.resources.uploaders.dtos import (
 )
 from core.resources.uploaders.models import Uploader
 from core.resources.uploaders.repositories import UploadersRepository
+from core.resources.uploaders.types import ApiKeyDoc, UploaderDoc
 from database.mongo_common import now_utc
 
 from .models import ApiKey
 from .repositories import ApiKeysRepository
 
 
+class UploadersRepositoryProtocol(Protocol):
+    async def find_by_email(self, email: str) -> UploaderDoc | None: ...
+    async def insert(self, doc: UploaderDoc) -> None: ...
+    async def list_all(self) -> list[UploaderDoc]: ...
+    async def update_status(self, uploader_id: str, status: str) -> None: ...
+
+
+class ApiKeysRepositoryProtocol(Protocol):
+    async def insert(self, doc: ApiKeyDoc) -> None: ...
+    async def find_by_hash(self, key_hash: str) -> ApiKeyDoc | None: ...
+    async def revoke_all_for_uploader(self, uploader_id: str) -> None: ...
+
+
 @dataclass
 class UploaderService:
-    repository: UploadersRepository = field(default_factory=UploadersRepository)
-    api_key_repo: ApiKeysRepository = field(default_factory=ApiKeysRepository)
+    repository: UploadersRepositoryProtocol = field(default_factory=UploadersRepository)
+    api_key_repo: ApiKeysRepositoryProtocol = field(default_factory=ApiKeysRepository)
 
     async def create_uploader(self, request: UploaderCreateRequest) -> tuple[Uploader, Optional[str], bool]:
         existing = await self.repository.find_by_email(request.email)

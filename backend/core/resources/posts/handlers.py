@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, TypeVar
 
 from fastapi import HTTPException
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pymongo.errors import PyMongoError
 
 from core.logger.logger import get_logger
@@ -19,12 +19,15 @@ from core.resources.posts.dtos import (
 from core.resources.posts.exceptions import PostNotFoundError
 from core.resources.posts.service import PostsService
 from core.resources.posts.upload_errors_repository import UploadErrorsRepository
-from core.services.cqrs.handler_registry import mutation_registry, query_registry
+from core.services.cqrs.handler_registry import Payload, mutation_registry, query_registry
 
 logger = get_logger(__name__)
 
 
-def _parse_payload(payload_model, payload: Dict[str, Any]):
+PayloadDTO = TypeVar("PayloadDTO", bound=BaseModel)
+
+
+def _parse_payload(payload_model: type[PayloadDTO], payload: Payload) -> PayloadDTO:
     try:
         return payload_model.model_validate(payload)
     except ValidationError as exc:
@@ -32,7 +35,7 @@ def _parse_payload(payload_model, payload: Dict[str, Any]):
 
 
 def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsRepository) -> None:
-    async def handle_list_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_posts(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PaginationPayloadDTO, payload)
             take = max(1, min(req.take, 50))
@@ -45,7 +48,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.exception("list_posts db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_get_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_get_post(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PostIdPayloadDTO, payload)
             user_id = req.auth.user.user_id if req.auth.user else None
@@ -56,7 +59,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("get_post not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_list_user_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_user_posts(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PaginationPayloadDTO, payload)
             if not req.auth.authenticated or not req.auth.user:
@@ -82,7 +85,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.exception("list_user_posts db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_list_saved_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_saved_posts(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PaginationPayloadDTO, payload)
             user_id = req.auth.user.user_id if req.auth.user else ""
@@ -98,7 +101,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.exception("list_saved_posts db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_get_post_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_get_post_stats(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PostIdPayloadDTO, payload)
             logger.info("get_post_stats post_id=%s", req.postId)
@@ -108,7 +111,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("get_post_stats not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_list_comments(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_comments(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PostCommentsPayloadDTO, payload)
             take = max(1, min(req.take, 50))
@@ -120,7 +123,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("list_comments not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_toggle_like(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_toggle_like(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PostIdPayloadDTO, payload)
             user_id = req.auth.user.user_id if req.auth.user else ""
@@ -133,7 +136,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("toggle_like not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_toggle_save_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_toggle_save_post(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PostIdPayloadDTO, payload)
             user_id = req.auth.user.user_id if req.auth.user else ""
@@ -146,7 +149,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("toggle_save_post not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_add_comment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_add_comment(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(AddCommentPayloadDTO, payload)
             user_id = req.auth.user.user_id if req.auth.user else ""
@@ -159,7 +162,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.info("add_comment not found post_id=%s", payload.get("postId"))
             raise HTTPException(status_code=404, detail="post not found") from e
 
-    async def handle_search_posts(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_search_posts(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(SearchPostsPayloadDTO, payload)
             take = max(1, min(req.take, 50))
@@ -171,7 +174,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.exception("search_posts db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_delete_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_delete_post(payload: Payload) -> Dict[str, Any]:
         req = _parse_payload(PostIdPayloadDTO, payload)
         user_id = req.auth.user.user_id if req.auth.user else ""
         is_super_admin = req.auth.is_super_admin
@@ -189,7 +192,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.warning("delete_post forbidden post_id=%s user_id=%s", req.postId, user_id)
             raise HTTPException(status_code=403, detail=str(e)) from e
 
-    async def handle_list_upload_errors(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_upload_errors(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PaginationPayloadDTO, payload)
             if not req.auth.authenticated or not req.auth.user:
@@ -226,7 +229,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             logger.exception("list_upload_errors db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
-    async def handle_list_all_upload_errors(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_list_all_upload_errors(payload: Payload) -> Dict[str, Any]:
         try:
             req = _parse_payload(PaginationPayloadDTO, payload)
             if not req.auth.is_super_admin:
