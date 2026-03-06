@@ -228,4 +228,5 @@ export const postsApi = {
   async listUploadErrors(token: string, take = 50, skip = 0, email?: string) {
     return apiClient.query.listUploadErrors({ take, skip, email }, { token });
   },
+  _apiClient: apiClient,
 };

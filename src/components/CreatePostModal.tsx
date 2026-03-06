@@ -4,6 +4,7 @@ import { Loader2, Upload, X } from "lucide-react";
 import { useAppDispatch } from "@/store/hooks";
 import { fetchFeed } from "@/store/slices/feedSlice";
 import { media, postsApi, type MediaType } from "@/lib/api";
+import { apiClient } from "@/lib/api-client";
 import { processMediaFile } from "@/lib/mediaProcessor";
 import { toast } from "@/hooks/use-toast";
 
@@ -184,14 +185,6 @@ export default function CreatePostModal({
 
   const startUpload = async () => {
     if (files.length === 0 || !mediaType) return;
-    const token = await getToken();
-    if (!token) {
-      toast({
-        title: "Sign in required",
-        description: "You need to login to post.",
-      });
-      return;
-    }
 
     setIsUploading(true);
     setIsProcessing(true);
@@ -203,6 +196,21 @@ export default function CreatePostModal({
     abortRef.current = abort;
 
     try {
+      const token = await getToken();
+      const adminKey = apiClient.getSuperAdminKey();
+      
+      const isAuthorized = !!token || !!uploaderApiKey || !!adminKey;
+
+      if (!isAuthorized) {
+        toast({
+          title: "Session required",
+          description: "Authorize or sign in to publish.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        setIsProcessing(false);
+        return;
+      }
       // Process media files (watermark images)
       const processedFiles: File[] = [];
       for (let i = 0; i < files.length; i++) {
@@ -228,9 +236,9 @@ export default function CreatePostModal({
           caption: title.trim(),
           description: description.trim(),
           tags,
-          username: user?.fullName || user?.username || undefined,
+          username: user?.fullName || user?.username || "System Root",
           profilePhoto: user?.imageUrl || undefined,
-          email: user?.primaryEmailAddress?.emailAddress || "",
+          email: user?.primaryEmailAddress?.emailAddress || "root@system",
         },
         { token: token || undefined, uploaderApiKey },
       );

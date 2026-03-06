@@ -9,6 +9,7 @@ import {
   Film,
   AlertCircle,
   CheckCircle2,
+  Plus,
 } from "lucide-react";
 import { superAdminApi, SuperAdminUploader, postsApi } from "@/lib/api";
 import { ApiPost } from "@/lib/api-client";
@@ -158,7 +159,14 @@ export default function SuperAdmin() {
             </h1>
           </div>
           <div className="flex gap-3">
-            {/* Header badges or stats could go here */}
+            <Button
+              onClick={() => navigate("/super-admin/post")}
+              variant="outline"
+              className="rounded-2xl bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 transition-all font-bold gap-2 py-6 px-6"
+            >
+              <Plus className="w-5 h-5" />
+              Create Post
+            </Button>
           </div>
         </div>
 

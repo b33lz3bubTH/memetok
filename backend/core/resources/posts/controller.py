@@ -13,7 +13,7 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
 from config.config import settings
 from core.logger.logger import get_logger
-from core.plugins.auth.clerk_jwt import AuthError, verify_clerk_bearer_token
+from core.plugins.auth.clerk_jwt import AuthClaims, AuthError, verify_clerk_bearer_token
 from core.resources.posts.access_control import get_access_control_service
 from core.resources.jobs.shared import get_shared_jobs_service
 from core.resources.posts.pipeline import PipelineContext
@@ -110,18 +110,25 @@ async def upload_and_create_post(
     x_super_admin_key: str = Header(default=None, alias="X-Super-Admin-Key"),
     authorization: str | None = Header(default=None),
 ):
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="missing bearer token")
-
-    try:
-        token = authorization.split(" ", 1)[1].strip()
-        claims = await verify_clerk_bearer_token(token)
-    except AuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
-
     is_super_admin = False
     if x_super_admin_key:
         is_super_admin = hmac.compare_digest(x_super_admin_key, settings.super_admin_api_key)
+
+    claims: AuthClaims | None = None
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            token = authorization.split(" ", 1)[1].strip()
+            claims = await verify_clerk_bearer_token(token)
+        except AuthError as exc:
+            if not is_super_admin:
+                raise HTTPException(status_code=401, detail=str(exc)) from exc
+    
+    if not claims and is_super_admin:
+        # Create a synthetic claim for super admin if no bearer token is present
+        claims = AuthClaims(user_id="root", email="root@system")
+
+    if not claims:
+        raise HTTPException(status_code=401, detail="missing authorization or invalid super admin key")
 
     if not is_super_admin and not x_api_key:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
@@ -138,7 +145,7 @@ async def upload_and_create_post(
             logger.info("upload denied for user_id=%s email=%s", claims.user_id, valid_email)
             raise HTTPException(status_code=403, detail="Uploader access denied")
 
-    if not _upload_limiter.is_allowed(claims.user_id):
+    if not is_super_admin and not _upload_limiter.is_allowed(claims.user_id):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
     if not files:

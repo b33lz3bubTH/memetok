@@ -11,6 +11,7 @@ import PostPage from "./pages/PostPage";
 import NotFound from "./pages/NotFound";
 import UploaderPortal from "./pages/UploaderPortal";
 import SuperAdmin from "./pages/SuperAdmin";
+import SuperAdminUpload from "./pages/SuperAdminUpload";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
                 }
               />
               <Route path="/super-admin" element={<SuperAdmin />} />
+              <Route path="/super-admin/post" element={<SuperAdminUpload />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
