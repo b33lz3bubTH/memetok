@@ -5,6 +5,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from core.plugins.auth.models import AuthUser
+
 
 MediaType = Literal["video", "image"]
 
@@ -104,3 +106,46 @@ class ToggleLikeResponse(BaseModel):
     postId: str
     liked: bool
     likes: int
+
+
+class AuthContextDTO(BaseModel):
+    authenticated: bool = False
+    user: Optional[AuthUser] = None
+    headers: dict[str, str] = Field(default_factory=dict)
+    is_super_admin: bool = False
+
+
+class PostsPayloadDTO(BaseModel):
+    auth: AuthContextDTO = Field(default_factory=AuthContextDTO, alias="__auth")
+    email: Optional[str] = None
+
+
+class PaginationPayloadDTO(PostsPayloadDTO):
+    take: int = 20
+    skip: int = 0
+
+
+class PostIdPayloadDTO(PostsPayloadDTO):
+    postId: str = Field(min_length=1)
+
+
+class PostCommentsPayloadDTO(PostIdPayloadDTO):
+    take: int = 20
+    skip: int = 0
+
+
+class ToggleLikePayloadDTO(PostIdPayloadDTO):
+    pass
+
+
+class ToggleSavePayloadDTO(PostIdPayloadDTO):
+    pass
+
+
+class AddCommentPayloadDTO(PostIdPayloadDTO):
+    text: str = Field(min_length=1, max_length=300)
+    firstName: Optional[str] = None
+
+
+class SearchPostsPayloadDTO(PaginationPayloadDTO):
+    query: str = ""
