@@ -1,6 +1,6 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setLikedState, setLikesCount, toggleLike } from '@/store/slices/feedSlice';
+import { setLikedState, setLikesCount, setSavedState, toggleLike } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
 import { Heart, MessageCircle, Share2, Music, Bookmark } from 'lucide-react';
@@ -28,17 +28,14 @@ const formatNumber = (num: number): string => {
 const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const dispatch = useAppDispatch();
   const likedVideos = useAppSelector((state) => state.feed.likedVideos);
+  const savedVideos = useAppSelector((state) => state.feed.savedVideos);
   const isLiked = likedVideos.includes(video.id);
+  const isSaved = savedVideos.includes(video.id);
   const heartRef = useRef<HTMLDivElement>(null);
   const burstContainerRef = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [isSaved, setIsSaved] = useState(Boolean(video.savedByUser));
-
-  useEffect(() => {
-    setIsSaved(Boolean(video.savedByUser));
-  }, [video.id, video.savedByUser]);
 
   const handleLike = useCallback(async () => {
     dispatch(toggleLike(video.id));
@@ -105,13 +102,15 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const handleSave = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
+    const optimisticSaved = !isSaved;
+    dispatch(setSavedState({ videoId: video.id, saved: optimisticSaved }));
     try {
       const res = await postsApi.toggleSave(video.id, token);
-      setIsSaved(res.saved);
+      dispatch(setSavedState({ videoId: video.id, saved: res.saved }));
     } catch {
-      // ignore
+      dispatch(setSavedState({ videoId: video.id, saved: !optimisticSaved }));
     }
-  }, [getToken, video.id]);
+  }, [dispatch, getToken, isSaved, video.id]);
 
   return (
     <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center gap-5">

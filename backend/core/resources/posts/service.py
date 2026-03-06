@@ -109,10 +109,15 @@ class PostsService:
         merged = set(saved_dict.keys()).union(liked_dict.keys())
         return len(merged)
 
-    async def get_post(self, post_id: str) -> PostDTO:
+    async def get_post(self, post_id: str, user_id: str | None = None) -> PostDTO:
         doc = await self.posts_repo.find_by_id(post_id)
         if not doc:
             raise PostNotFoundError()
+
+        if user_id:
+            doc["likedByUser"] = await self.likes_repo.exists(post_id=post_id, user_id=user_id)
+            doc["savedByUser"] = await self.saved_posts_repo.exists(post_id=post_id, user_id=user_id)
+
         logger.info("get_post post_id=%s", post_id)
         return PostDTO.model_validate(doc)
 
@@ -212,4 +217,3 @@ class PostsService:
 
         docs = await self.comments_repo.find_latest(post_id=post_id, take=take, skip=skip)
         return [CommentDTO.model_validate(d) for d in docs]
-

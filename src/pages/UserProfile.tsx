@@ -28,6 +28,13 @@ const UserProfile = () => {
   const [accessChecked, setAccessChecked] = useState(false);
  
   useEffect(() => {
+    const rawTab = searchParams.get("tab");
+    if (rawTab === "posts" || rawTab === "saved" || rawTab === "logs") {
+      setTab(rawTab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!user?.id) return;
  
     const fetchAccess = async () => {
@@ -39,7 +46,9 @@ const UserProfile = () => {
           
           // Set default tab if not present
           if (!searchParams.get("tab")) {
-             setTab(res.isUploader ? "posts" : "saved");
+            const defaultTab: TabKey = res.isUploader ? "posts" : "saved";
+            setTab(defaultTab);
+            setSearchParams({ tab: defaultTab, take: take.toString(), skip: "0" });
           }
         }
       } catch (err) {
@@ -50,7 +59,7 @@ const UserProfile = () => {
     };
  
     fetchAccess();
-  }, [user?.id, getToken]);
+  }, [user?.id, getToken, searchParams, setSearchParams, take]);
  
   useEffect(() => {
     if (!user?.id || !accessChecked) return;

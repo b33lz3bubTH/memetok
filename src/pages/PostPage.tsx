@@ -11,8 +11,8 @@ import { initializeTheme } from '@/store/slices/themeSlice';
 import { useAppSelector } from '@/store/hooks';
 import Loader from '@/components/Loader';
 
-const toVideoPost = (p: Post, stats?: { likes: number; comments: number }): VideoPost => {
-  const defaultStats = stats || { likes: 0, comments: 0 };
+const toVideoPost = (p: Post): VideoPost => {
+  const defaultStats = p.stats || { likes: 0, comments: 0 };
   const username = p.author?.username || (p.author?.userId ? `user_${p.author.userId.slice(-6)}` : 'user');
   const avatar = p.author?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
   
@@ -22,6 +22,8 @@ const toVideoPost = (p: Post, stats?: { likes: number; comments: number }): Vide
   
   return {
     id: p.id,
+    likedByUser: p.likedByUser,
+    savedByUser: p.savedByUser,
     media: mediaItems,
     mediaId: firstMedia?.id,
     mediaType: firstMedia?.type,
@@ -54,7 +56,6 @@ const PostPage = () => {
   const dispatch = useAppDispatch();
   const { currentTheme } = useAppSelector((state) => state.theme);
   const [post, setPost] = useState<Post | null>(null);
-  const [stats, setStats] = useState<{ likes: number; comments: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -79,13 +80,6 @@ const PostPage = () => {
         setIsLoading(true);
         const p = await postsApi.get(postId);
         setPost(p);
-        
-        try {
-          const statsRes = await postsApi.getStats(postId);
-          setStats(statsRes.stats);
-        } catch {
-          setStats({ likes: 0, comments: 0 });
-        }
       } catch (err) {
         console.error('Failed to fetch post:', err);
         navigate('/');
@@ -110,7 +104,7 @@ const PostPage = () => {
 
   if (!post) return null;
 
-  const videoPost = toVideoPost(post, stats || undefined);
+  const videoPost = toVideoPost(post);
 
   return (
     <div className="relative w-full h-screen flex justify-center bg-background overflow-hidden" style={{ overflow: 'hidden' }}>

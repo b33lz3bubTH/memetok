@@ -6,6 +6,7 @@ interface FeedState {
   videos: VideoPost[];
   currentVideoIndex: number;
   likedVideos: string[];
+  savedVideos: string[];
   isLoading: boolean;
   isLoadingMore: boolean;
   skip: number;
@@ -16,6 +17,7 @@ const initialState: FeedState = {
   videos: [],
   currentVideoIndex: 0,
   likedVideos: [],
+  savedVideos: [],
   isLoading: true,
   isLoadingMore: false,
   skip: 0,
@@ -65,16 +67,18 @@ export const fetchFeed = createAsyncThunk('feed/fetchFeed', async (initialCount:
   const res = await postsApi.list(initialCount, 0);
   const videos = res.items.map((post) => toVideoPost(post));
   const likedVideoIds = res.items.filter((post) => post.likedByUser).map((post) => post.id);
+  const savedVideoIds = res.items.filter((post) => post.savedByUser).map((post) => post.id);
 
-  return { videos, likedVideoIds, skip: res.items.length, hasMore: res.items.length === initialCount };
+  return { videos, likedVideoIds, savedVideoIds, skip: res.items.length, hasMore: res.items.length === initialCount };
 });
 
 export const fetchMoreFeed = createAsyncThunk('feed/fetchMoreFeed', async ({ take, skip }: { take: number; skip: number }) => {
   const res = await postsApi.list(take, skip);
   const videos = res.items.map((post) => toVideoPost(post));
   const likedVideoIds = res.items.filter((post) => post.likedByUser).map((post) => post.id);
+  const savedVideoIds = res.items.filter((post) => post.savedByUser).map((post) => post.id);
 
-  return { videos, likedVideoIds, skip: skip + res.items.length, hasMore: res.items.length === take };
+  return { videos, likedVideoIds, savedVideoIds, skip: skip + res.items.length, hasMore: res.items.length === take };
 });
 
 
@@ -116,6 +120,16 @@ const feedSlice = createSlice({
       const has = state.likedVideos.includes(videoId);
       if (liked && !has) state.likedVideos.push(videoId);
       if (!liked && has) state.likedVideos = state.likedVideos.filter(id => id !== videoId);
+      const video = state.videos.find(v => v.id === videoId);
+      if (video) video.likedByUser = liked;
+    },
+    setSavedState: (state, action: PayloadAction<{ videoId: string; saved: boolean }>) => {
+      const { videoId, saved } = action.payload;
+      const has = state.savedVideos.includes(videoId);
+      if (saved && !has) state.savedVideos.push(videoId);
+      if (!saved && has) state.savedVideos = state.savedVideos.filter(id => id !== videoId);
+      const video = state.videos.find(v => v.id === videoId);
+      if (video) video.savedByUser = saved;
     },
     incCommentsCount: (state, action: PayloadAction<{ videoId: string; delta: number }>) => {
       const { videoId, delta } = action.payload;
@@ -132,6 +146,7 @@ const feedSlice = createSlice({
       state.skip = action.payload.skip;
       state.hasMore = action.payload.hasMore;
       state.likedVideos = action.payload.likedVideoIds;
+      state.savedVideos = action.payload.savedVideoIds;
       state.isLoading = false;
     });
     builder.addCase(fetchFeed.rejected, (state) => {
@@ -147,6 +162,7 @@ const feedSlice = createSlice({
       state.skip = action.payload.skip;
       state.hasMore = action.payload.hasMore;
       state.likedVideos = Array.from(new Set([...state.likedVideos, ...action.payload.likedVideoIds]));
+      state.savedVideos = Array.from(new Set([...state.savedVideos, ...action.payload.savedVideoIds]));
       state.isLoadingMore = false;
     });
     builder.addCase(fetchMoreFeed.rejected, (state) => {
@@ -162,6 +178,7 @@ export const {
   toggleLike,
   setLikesCount,
   setLikedState,
+  setSavedState,
   incCommentsCount,
 } = feedSlice.actions;
 export default feedSlice.reducer;

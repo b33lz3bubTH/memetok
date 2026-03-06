@@ -39,8 +39,11 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             post_id = str(payload.get("postId", ""))
             if not post_id:
                 raise HTTPException(status_code=400, detail="postId is required")
-            logger.info("get_post post_id=%s", post_id)
-            post = await svc.get_post(post_id=post_id)
+            auth = payload.get("__auth", {})
+            user = auth.get("user") if isinstance(auth, dict) else None
+            user_id = user.user_id if user else None
+            logger.info("get_post post_id=%s user_id=%s", post_id, user_id)
+            post = await svc.get_post(post_id=post_id, user_id=user_id)
             return post.model_dump()
         except PostNotFoundError as e:
             logger.info("get_post not found post_id=%s", payload.get("postId"))
