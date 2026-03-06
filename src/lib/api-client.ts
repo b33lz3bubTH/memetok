@@ -158,8 +158,9 @@ class ApiClient {
 
     getPost: async (
       payload: QueryPayload[typeof PostsQueryAction.GET_POST],
+      opts?: { token?: string },
     ) => {
-      return this.execute<ApiPost>("query", PostsQueryAction.GET_POST, payload);
+      return this.execute<ApiPost>("query", PostsQueryAction.GET_POST, payload, opts);
     },
 
     listUserPosts: async (

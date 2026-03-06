@@ -187,8 +187,8 @@ export const postsApi = {
     return res;
   },
 
-  async get(postId: string) {
-    const post = await apiClient.query.getPost({ postId });
+  async get(postId: string, token?: string) {
+    const post = await apiClient.query.getPost({ postId }, token ? { token } : undefined);
     await cache.savePost(post);
     return post;
   },

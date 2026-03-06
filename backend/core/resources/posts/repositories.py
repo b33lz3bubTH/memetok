@@ -149,6 +149,11 @@ class LikesRepository:
         await mongo.db[LIKES_COLLECTION].insert_one({"postId": post_id, "userId": user_id, "createdAt": now})
         return True
 
+    async def exists(self, post_id: str, user_id: str) -> bool:
+        mongo = get_mongo()
+        doc = await mongo.db[LIKES_COLLECTION].find_one({"postId": post_id, "userId": user_id})
+        return doc is not None
+
 
     async def list_liked_post_ids(self, user_id: str, post_ids: List[str]) -> List[str]:
         if not post_ids:
@@ -179,6 +184,11 @@ class SavedPostsRepository:
             return False
         await mongo.db[SAVED_POSTS_COLLECTION].insert_one({"postId": post_id, "userId": user_id, "createdAt": now})
         return True
+
+    async def exists(self, post_id: str, user_id: str) -> bool:
+        mongo = get_mongo()
+        doc = await mongo.db[SAVED_POSTS_COLLECTION].find_one({"postId": post_id, "userId": user_id})
+        return doc is not None
 
     async def list_saved_post_ids(self, user_id: str, take: int, skip: int) -> List[str]:
         mongo = get_mongo()

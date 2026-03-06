@@ -1,9 +1,9 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setLikedState, setLikesCount, setSavedState, toggleLike } from '@/store/slices/feedSlice';
 import { openCommentDrawer } from '@/store/slices/uiSlice';
 import { VideoPost } from '@/config/appConfig';
-import { Heart, MessageCircle, Share2, Music, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music, Bookmark, Loader2 } from 'lucide-react';
 import gsap from 'gsap';
 import { animate } from 'animejs';
 import { postsApi } from '@/lib/api';
@@ -36,6 +36,29 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
   const { getToken } = useAuth();
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isFetchingStatus, setIsFetchingStatus] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    const fetchStatus = async () => {
+      const token = await getToken();
+      if (!token) return;
+      setIsFetchingStatus(true);
+      try {
+        const post = await postsApi.get(video.id, token);
+        if (isActive) {
+          dispatch(setLikedState({ videoId: video.id, liked: !!post.likedByUser }));
+          dispatch(setSavedState({ videoId: video.id, saved: !!post.savedByUser }));
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        if (isActive) setIsFetchingStatus(false);
+      }
+    };
+    fetchStatus();
+    return () => { isActive = false; };
+  }, [video.id, getToken, dispatch]);
 
   const handleLike = useCallback(async () => {
     dispatch(toggleLike(video.id));
@@ -137,12 +160,16 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <button className="action-btn" onClick={handleLike}>
-          <div ref={heartRef} className="action-btn-icon relative">
-            <Heart
-              className={`w-7 h-7 transition-colors ${isLiked ? 'heart-filled' : 'text-white'}`}
-              fill={isLiked ? 'currentColor' : 'none'}
-            />
+        <button className="action-btn" onClick={handleLike} disabled={isFetchingStatus}>
+          <div ref={heartRef} className={`action-btn-icon relative ${isFetchingStatus ? 'opacity-50' : ''}`}>
+            {isFetchingStatus ? (
+              <Loader2 className="w-7 h-7 text-white animate-spin" />
+            ) : (
+              <Heart
+                className={`w-7 h-7 transition-colors ${isLiked ? 'heart-filled' : 'text-white'}`}
+                fill={isLiked ? 'currentColor' : 'none'}
+              />
+            )}
             <div ref={burstContainerRef} className="like-burst-container" />
           </div>
         </button>
@@ -167,9 +194,13 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <button className="action-btn" onClick={handleSave}>
-          <div className="action-btn-icon">
-            <Bookmark className={`w-7 h-7 ${isSaved ? 'text-yellow-300' : 'text-white'}`} fill={isSaved ? 'currentColor' : 'none'} />
+        <button className="action-btn" onClick={handleSave} disabled={isFetchingStatus}>
+          <div className={`action-btn-icon ${isFetchingStatus ? 'opacity-50' : ''}`}>
+            {isFetchingStatus ? (
+              <Loader2 className="w-7 h-7 text-white animate-spin" />
+            ) : (
+              <Bookmark className={`w-7 h-7 ${isSaved ? 'text-yellow-300' : 'text-white'}`} fill={isSaved ? 'currentColor' : 'none'} />
+            )}
           </div>
         </button>
       </SignedIn>
