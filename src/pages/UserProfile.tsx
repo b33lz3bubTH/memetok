@@ -12,67 +12,78 @@ const UserProfile = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [tab, setTab] = useState<TabKey>("saved");
+  const [tab, setTab] = useState<TabKey>((searchParams.get("tab") as TabKey) || "saved");
   const [isUploader, setIsUploader] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [uploadErrors, setUploadErrors] = useState<UploadError[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalPosts, setTotalPosts] = useState(0);
+  const [totalSaved, setTotalSaved] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
 
   const take = parseInt(searchParams.get("take") || "12");
   const skip = parseInt(searchParams.get("skip") || "0");
 
+  const [accessChecked, setAccessChecked] = useState(false);
+ 
   useEffect(() => {
-    if (!user?.id) {
-      if (!isLoading && !user) navigate("/");
-      return;
-    }
-
+    if (!user?.id) return;
+ 
+    const fetchAccess = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          const res = await accessApi.me(token, user.primaryEmailAddress?.emailAddress);
+          setIsUploader(res.isUploader);
+          
+          // Set default tab if not present
+          if (!searchParams.get("tab")) {
+             setTab(res.isUploader ? "posts" : "saved");
+          }
+        }
+      } catch (err) {
+        console.error("Error checking access:", err);
+      } finally {
+        setAccessChecked(true);
+      }
+    };
+ 
+    fetchAccess();
+  }, [user?.id, getToken]);
+ 
+  useEffect(() => {
+    if (!user?.id || !accessChecked) return;
+ 
     const fetchData = async () => {
       try {
         setIsLoading(true);
         const token = await getToken();
-        if (token) {
-          const [saved, access] = await Promise.all([
-            postsApi.listSaved(token, 50, 0),
-            accessApi.me(token, user.primaryEmailAddress?.emailAddress),
-          ]);
-          setSavedPosts(saved.items);
-          setIsUploader(access.isUploader);
-
-          if (access.isUploader) {
-            const [own, errors] = await Promise.all([
-              postsApi.listByUser(
-                user.id,
-                take,
-                skip,
-                user.primaryEmailAddress?.emailAddress,
-                token,
-              ),
-              postsApi.listUploadErrors(
-                token,
-                take,
-                skip,
-                user.primaryEmailAddress?.emailAddress,
-              ),
-            ]);
-            setPosts(own.items);
-            setTotalPosts(own.total || 0);
-            setUploadErrors(errors.items);
-            setTotalErrors(errors.total || 0);
-            
-            // Default to posts tab if it's the first load and we are an uploader
-            if (!searchParams.get("tab")) {
-              setTab("posts");
-            } else {
-              setTab(searchParams.get("tab") as TabKey);
-            }
-          } else {
-            setPosts([]);
-            setTab("saved");
-          }
+        if (!token) return;
+ 
+        if (tab === "saved") {
+          const res = await postsApi.listSaved(token, take, skip);
+          setSavedPosts(res.items);
+          setTotalSaved(res.total || 0);
+        } else if (tab === "posts" && isUploader) {
+          const res = await postsApi.listByUser(
+            user.id,
+            take,
+            skip,
+            user.primaryEmailAddress?.emailAddress,
+            token
+          );
+          setPosts(res.items);
+          setTotalPosts(res.total || 0);
+        } else if (tab === "logs" && isUploader) {
+          const res = await postsApi.listUploadErrors(
+            token,
+            take,
+            skip,
+            user.primaryEmailAddress?.emailAddress
+          );
+          setUploadErrors(res.items);
+          setTotalErrors(res.total || 0);
         }
       } catch (err) {
         console.error("Failed to fetch profile data:", err);
@@ -80,9 +91,9 @@ const UserProfile = () => {
         setIsLoading(false);
       }
     };
-
+ 
     fetchData();
-  }, [user?.id, navigate, getToken, take, skip]);
+  }, [user?.id, getToken, take, skip, tab, accessChecked, isUploader]);
 
   if (!user) return null;
   const activeItems = tab === "posts" ? posts : savedPosts;
@@ -96,10 +107,11 @@ const UserProfile = () => {
     setSearchParams({ tab: newTab, take: take.toString(), skip: "0" });
   };
 
-  const activeItemsCount = tab === "posts" ? totalPosts : tab === "saved" ? savedPosts.length : totalErrors;
+  const activeItemsCount = tab === "posts" ? totalPosts : tab === "saved" ? totalSaved : totalErrors;
+  const currentTotal = tab === "posts" ? totalPosts : tab === "saved" ? totalSaved : totalErrors;
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <div className="h-screen overflow-y-auto bg-background text-white hide-scrollbar pb-20">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
           <button
@@ -127,7 +139,7 @@ const UserProfile = () => {
               </p>
               <p className="text-white/60 text-sm mt-2">
                 {isUploader ? `${totalPosts} posts · ` : ""}
-                {savedPosts.length} saved
+                {totalSaved} saved
               </p>
             </div>
           </div>
@@ -228,27 +240,28 @@ const UserProfile = () => {
             )}
 
             {/* Pagination for logs */}
-            {totalErrors > take && (
-              <div className="flex items-center justify-center gap-4 py-4">
+            {currentTotal > take && (
+              <div className="flex items-center justify-center gap-4 py-8">
                 <button
                   disabled={skip === 0}
                   onClick={() => handlePageChange(Math.max(0, skip - take))}
-                  className="p-2 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                  className="p-3 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 active:scale-90 transition-all"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
 
                 <div className="text-sm font-medium text-white/70">
-                  Page {Math.floor(skip / take) + 1} of{" "}
-                  {Math.ceil(totalErrors / take)}
+                  <span className="text-white">Page {Math.floor(skip / take) + 1}</span>
+                  <span className="mx-1 text-white/30">/</span>
+                  {Math.ceil(currentTotal / take)}
                 </div>
 
                 <button
-                  disabled={skip + take >= totalErrors}
+                  disabled={skip + take >= currentTotal}
                   onClick={() => handlePageChange(skip + take)}
-                  className="p-2 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                  className="p-3 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 active:scale-90 transition-all"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
             )}
@@ -319,28 +332,29 @@ const UserProfile = () => {
               })}
             </div>
 
-            {/* Pagination Controls for uploader posts */}
-            {tab === "posts" && totalPosts > take && (
-              <div className="flex items-center justify-center gap-4 py-4">
+            {/* Pagination Controls */}
+            {currentTotal > take && (
+              <div className="flex items-center justify-center gap-4 py-8">
                 <button
                   disabled={skip === 0}
                   onClick={() => handlePageChange(Math.max(0, skip - take))}
-                  className="p-2 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                  className="p-3 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 active:scale-90 transition-all"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
-
+ 
                 <div className="text-sm font-medium text-white/70">
-                  Page {Math.floor(skip / take) + 1} of{" "}
-                  {Math.ceil(totalPosts / take)}
+                  <span className="text-white">Page {Math.floor(skip / take) + 1}</span>
+                  <span className="mx-1 text-white/30">/</span>
+                  {Math.ceil(currentTotal / take)}
                 </div>
-
+ 
                 <button
-                  disabled={skip + take >= totalPosts}
+                  disabled={skip + take >= currentTotal}
                   onClick={() => handlePageChange(skip + take)}
-                  className="p-2 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                  className="p-3 rounded-full glass disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 active:scale-90 transition-all"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
             )}

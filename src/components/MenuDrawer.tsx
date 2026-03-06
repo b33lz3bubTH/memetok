@@ -5,21 +5,8 @@ import { X, ChevronRight, Home, TrendingUp, Compass, Info, Shield, Mail, Layers,
 import gsap from "gsap";
 import { APP_CONFIG } from "@/config/appConfig";
 import { useState } from "react";
+import { CATEGORIES } from '@/config/appConfig'
 
-const CATEGORIES = [
-  {
-    name: "Entertainment",
-    sub: ["Movies", "Music", "Gaming", "Comedy"],
-  },
-  {
-    name: "Lifestyle",
-    sub: ["Fashion", "Food", "Travel", "Fitness"],
-  },
-  {
-    name: "Technology",
-    sub: ["Coding", "Gadgets", "AI", "Blockchain"],
-  },
-];
 
 const MenuDrawer = () => {
   const dispatch = useAppDispatch();

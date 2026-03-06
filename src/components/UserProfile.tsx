@@ -120,7 +120,7 @@ const UserProfile = () => {
                   </button>
                 )}
 
-                <button
+                {/* <button
                   onClick={() => {
                     setIsOpen(false);
                     navigate("/settings");
@@ -129,7 +129,7 @@ const UserProfile = () => {
                 >
                   <Settings className="w-4 h-4" />
                   Settings
-                </button>
+                </button> */}
 
                 <button
                   onClick={() => {

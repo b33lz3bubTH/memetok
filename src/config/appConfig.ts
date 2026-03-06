@@ -12,6 +12,21 @@ export interface ThemePalette {
   gradient: string;
 }
 
+export const CATEGORIES = [
+  {
+    name: "Entertainment",
+    sub: ["Movies", "Music", "Gaming", "v8"],
+  },
+  {
+    name: "Lifestyle",
+    sub: ["Fashion", "Food", "Travel", "Fitness"],
+  },
+  {
+    name: "Technology",
+    sub: ["Coding", "Gadgets", "AI", "Blockchain"],
+  },
+];
+
 export const THEME_PALETTES: ThemePalette[] = [
   {
     id: 'neon-cyberpunk',
