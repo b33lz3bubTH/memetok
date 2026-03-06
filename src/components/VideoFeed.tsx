@@ -9,14 +9,15 @@ import MenuDrawer from './MenuDrawer';
 import Loader from './Loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
-import { Menu } from 'lucide-react';
-import { openMenu } from '@/store/slices/uiSlice';
+import { Menu, Volume2, VolumeX } from 'lucide-react';
+import { openMenu, toggleMute } from '@/store/slices/uiSlice';
 import UserProfile from './UserProfile';
 
 const VideoFeed = () => {
   const dispatch = useAppDispatch();
   const { videos, isLoading, isLoadingMore, skip, hasMore, currentVideoIndex } = useAppSelector((state) => state.feed);
   const { currentTheme } = useAppSelector((state) => state.theme);
+  const { isMuted } = useAppSelector((state) => state.ui);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleVideoIndex, setVisibleVideoIndex] = useState(0);
   const fetchingRef = useRef(false);
@@ -137,13 +138,24 @@ No uploads available yet. Check back soon.
         <MenuDrawer />
       </div>
 
-      {/* Menu Button (Top Left) */}
-      <div className="fixed top-4 left-4 z-50">
+      {/* Top Left Controls */}
+      <div className="fixed top-4 left-4 z-50 flex items-center gap-3">
         <button 
           onClick={() => dispatch(openMenu())}
-          className="glass w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+          className="glass w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
         >
           <Menu className="w-5 h-5 text-white" />
+        </button>
+
+        <button
+          onClick={() => dispatch(toggleMute())}
+          className="glass w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
+        >
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-white" />
+          ) : (
+            <Volume2 className="w-5 h-5 text-white" />
+          )}
         </button>
       </div>
 

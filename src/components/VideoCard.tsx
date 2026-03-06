@@ -7,7 +7,7 @@ import {
   setLikedState,
 } from "@/store/slices/feedSlice";
 import { VideoPost } from "@/config/appConfig";
-import { Volume2, VolumeX, Play, Loader2, Heart } from "lucide-react";
+import { Play, Loader2, Heart } from "lucide-react";
 import VideoSidebar from "./VideoSidebar";
 import VideoOverlay from "./VideoOverlay";
 import VideoSeekBar from "./VideoSeekBar";
@@ -214,14 +214,6 @@ const VideoCard = ({
     }
   }, [isImage]);
 
-  const handleMuteToggle = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      dispatch(toggleMute());
-    },
-    [dispatch],
-  );
-
   const handleDoubleTap = useCallback(async () => {
     // Show like animation
     setShowLikeAnimation(true);
@@ -338,25 +330,26 @@ const VideoCard = ({
       {/* Media Element */}
       {isImage ? (
         hasMultipleImages ? (
-          <div className="absolute inset-0 w-full h-screen flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center">
             {/* Instagram-style Image Counter */}
             <div className="absolute top-20 right-4 z-30 bg-black/50 backdrop-blur-md rounded-full px-3 py-1 text-white/90 text-sm font-medium border border-white/10 shadow-sm transition-opacity duration-300">
               {currentImageIndex + 1} / {imageItems.length}
             </div>
 
-            <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="w-full h-screen">
-              <CarouselContent className="h-screen -ml-0">
+            <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="w-full h-full">
+              <CarouselContent className="h-full -ml-0">
                 {imageItems.map((item) => (
                   <CarouselItem
                     key={item.id}
-                    className="h-screen pl-0 basis-full"
+                    className="h-full pl-0 basis-full"
                   >
                     <img
                       src={mediaApi.imageUrl(item.id)}
-                      className="w-full h-screen object-contain"
+                      className="w-full h-full object-contain"
                       alt={video.title}
                       onTouchStart={handleTouchStart}
                       onDoubleClick={handleDoubleClick}
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                   </CarouselItem>
                 ))}
@@ -373,6 +366,7 @@ const VideoCard = ({
             onClick={handleVideoClick}
             onTouchStart={handleTouchStart}
             onDoubleClick={handleDoubleClick}
+            onContextMenu={(e) => e.preventDefault()}
           />
         )
       ) : (
@@ -396,17 +390,21 @@ const VideoCard = ({
           onDoubleClick={handleDoubleClick}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
+          onContextMenu={(e) => e.preventDefault()}
         />
       )}
 
-      {/* Seek Bar for active video */}
+      {/* Seek Bar for active video - shows only when paused */}
       {isActive && !isImage && (
-        <VideoSeekBar
-          currentTime={currentTime}
-          duration={duration}
-          onSeek={handleSeek}
-          isActive={isActive}
-        />
+        <div className="absolute bottom-0 left-0 right-0 z-[60]">
+          <VideoSeekBar
+            currentTime={currentTime}
+            duration={duration}
+            onSeek={handleSeek}
+            isActive={isActive}
+            isPaused={!isPlaying}
+          />
+        </div>
       )}
 
       {/* Buffer Progress Bar for Next Up video */}
@@ -449,20 +447,6 @@ const VideoCard = ({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
           <Loader2 className="w-8 h-8 text-white/80 animate-spin" />
         </div>
-      )}
-
-      {/* Mute Button */}
-      {!isImage && (
-        <button
-          onClick={handleMuteToggle}
-          className="absolute top-4 right-4 z-20 action-btn-icon"
-        >
-          {isMuted ? (
-            <VolumeX className="w-5 h-5 text-white" />
-          ) : (
-            <Volume2 className="w-5 h-5 text-white" />
-          )}
-        </button>
       )}
 
       {/* Right Sidebar Actions */}

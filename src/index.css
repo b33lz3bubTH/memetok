@@ -87,7 +87,7 @@
   #root {
     background: hsl(var(--theme-background)) !important;
     background-color: hsl(var(--theme-background)) !important;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   /* Custom Scrollbar Styles */
@@ -132,15 +132,29 @@
 @layer components {
   /* Video container snap scrolling */
   .video-feed-container {
-    @apply h-screen overflow-y-scroll hide-scrollbar;
+    @apply overflow-y-scroll hide-scrollbar;
+    height: 100dvh;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
   }
 
   .video-card {
-    @apply relative h-screen w-full;
+    @apply relative w-full overflow-hidden;
+    height: 100dvh;
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Prevent long-press download on mobile */
+  .video-card video,
+  .video-card img {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: auto;
   }
 
   /* Glass morphism effect */
