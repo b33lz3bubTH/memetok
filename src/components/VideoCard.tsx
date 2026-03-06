@@ -19,6 +19,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 import { useAuth } from "@clerk/clerk-react";
 import gsap from "gsap";
@@ -55,6 +56,19 @@ const VideoCard = ({
   const [canPlay, setCanPlay] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    
+    setCurrentImageIndex(carouselApi.selectedScrollSnap());
+
+    carouselApi.on("select", () => {
+      setCurrentImageIndex(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
 
   const videoUrl = video.postVideos[0]?.videoUrl || "";
   const mediaItems =
@@ -325,7 +339,12 @@ const VideoCard = ({
       {isImage ? (
         hasMultipleImages ? (
           <div className="absolute inset-0 w-full h-screen flex items-center justify-center">
-            <Carousel opts={{ loop: true }} className="w-full h-screen">
+            {/* Instagram-style Image Counter */}
+            <div className="absolute top-20 right-4 z-30 bg-black/50 backdrop-blur-md rounded-full px-3 py-1 text-white/90 text-sm font-medium border border-white/10 shadow-sm transition-opacity duration-300">
+              {currentImageIndex + 1} / {imageItems.length}
+            </div>
+
+            <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="w-full h-screen">
               <CarouselContent className="h-screen -ml-0">
                 {imageItems.map((item) => (
                   <CarouselItem
