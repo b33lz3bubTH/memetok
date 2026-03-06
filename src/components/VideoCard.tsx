@@ -10,6 +10,7 @@ import { VideoPost } from "@/config/appConfig";
 import { Volume2, VolumeX, Play, Loader2, Heart } from "lucide-react";
 import VideoSidebar from "./VideoSidebar";
 import VideoOverlay from "./VideoOverlay";
+import VideoSeekBar from "./VideoSeekBar";
 import { PreloadStrategy } from "@/hooks/useVideoPreload";
 import { media as mediaApi, postsApi } from "@/lib/api";
 import {
@@ -52,6 +53,8 @@ const VideoCard = ({
   const [isBuffering, setIsBuffering] = useState(true);
   const [bufferProgress, setBufferProgress] = useState(0);
   const [canPlay, setCanPlay] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const videoUrl = video.postVideos[0]?.videoUrl || "";
   const mediaItems =
@@ -139,6 +142,25 @@ const VideoCard = ({
       setIsPlaying(false);
     }
   }, [isActive, dispatch, video.id, isImage]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleSeek = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -353,6 +375,18 @@ const VideoCard = ({
           }}
           onTouchEnd={handleVideoHoldEnd}
           onDoubleClick={handleDoubleClick}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+        />
+      )}
+
+      {/* Seek Bar for active video */}
+      {isActive && !isImage && (
+        <VideoSeekBar
+          currentTime={currentTime}
+          duration={duration}
+          onSeek={handleSeek}
+          isActive={isActive}
         />
       )}
 

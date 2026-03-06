@@ -5,9 +5,12 @@ import { initializeTheme } from '@/store/slices/themeSlice';
 import VideoCard from './VideoCard';
 import VideoPlaceholder from './VideoPlaceholder';
 import CommentDrawer from './CommentDrawer';
+import MenuDrawer from './MenuDrawer';
 import Loader from './Loader';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
+import { Menu } from 'lucide-react';
+import { openMenu } from '@/store/slices/uiSlice';
 import UserProfile from './UserProfile';
 
 const VideoFeed = () => {
@@ -129,15 +132,19 @@ No uploads available yet. Check back soon.
 
         {/* Comment Drawer */}
         <CommentDrawer />
+
+        {/* Menu Drawer */}
+        <MenuDrawer />
       </div>
 
-      {/* Theme Indicator (subtle) */}
+      {/* Menu Button (Top Left) */}
       <div className="fixed top-4 left-4 z-50">
-        <div className="glass px-3 py-1.5 rounded-full">
-          <span className="text-xs text-white/70 font-medium">
-            {currentTheme.name}
-          </span>
-        </div>
+        <button 
+          onClick={() => dispatch(openMenu())}
+          className="glass w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+        >
+          <Menu className="w-5 h-5 text-white" />
+        </button>
       </div>
 
       {/* User Profile */}

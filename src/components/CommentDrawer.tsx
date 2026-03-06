@@ -26,6 +26,7 @@ const CommentDrawer = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const postId = useMemo(() => activeVideoId ?? "", [activeVideoId]);
 
@@ -109,6 +110,10 @@ const CommentDrawer = () => {
     await cache.saveComment(c);
     dispatch(incCommentsCount({ videoId: postId, delta: 1 }));
     setText("");
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
   }, [dispatch, getToken, postId, text, user?.firstName]);
 
   if (!isCommentDrawerOpen) return null;
@@ -138,7 +143,7 @@ const CommentDrawer = () => {
         </div>
 
         {/* Comments List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 h-[calc(70vh-140px)]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 break-words">
           {isLoading && <div className="text-sm text-white/60">Loading...</div>}
           {!isLoading &&
             comments.map((comment) => (
@@ -177,18 +182,38 @@ const CommentDrawer = () => {
                   `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${user?.id}`
                 }
                 alt="Me"
-                className="w-10 h-10 rounded-full flex-shrink-0 bg-white/5 border border-white/10"
+                className="w-10 h-10 rounded-full flex-shrink-0 bg-white/5 border border-white/10 self-end mb-1"
               />
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Add comment..."
-                className="flex-1 bg-muted rounded-full px-4 py-3 text-sm text-white placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
+              <div className="flex-1 relative flex items-center bg-muted/60 backdrop-blur-sm rounded-2xl px-4 py-2 transition-all focus-within:ring-2 focus-within:ring-primary/50 focus-within:bg-muted border border-white/5">
+                <textarea
+                  ref={textareaRef}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Add comment..."
+                  rows={1}
+                  style={{
+                    height: "auto",
+                    minHeight: "24px",
+                    maxHeight: "150px",
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  className="flex-1 bg-transparent text-[15px] leading-relaxed text-white placeholder:text-muted-foreground outline-none resize-none py-1 overflow-y-auto hide-scrollbar break-words"
+                />
+              </div>
               <button
                 onClick={handleSend}
-                className="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:opacity-90 transition-opacity"
+                disabled={!text.trim()}
+                className="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed self-end mb-0.5"
               >
                 <Send className="w-5 h-5 text-primary-foreground" />
               </button>

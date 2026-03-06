@@ -6,6 +6,7 @@ interface UIState {
   isMuted: boolean;
   isPaused: boolean;
   showPlayIcon: boolean;
+  isMenuOpen: boolean;
 }
 
 const initialState: UIState = {
@@ -14,6 +15,7 @@ const initialState: UIState = {
   isMuted: true,
   isPaused: false,
   showPlayIcon: false,
+  isMenuOpen: false,
 };
 
 const uiSlice = createSlice({
@@ -45,6 +47,15 @@ const uiSlice = createSlice({
     setActiveVideoId: (state, action: PayloadAction<string | null>) => {
       state.activeVideoId = action.payload;
     },
+    openMenu: (state) => {
+      state.isMenuOpen = true;
+    },
+    closeMenu: (state) => {
+      state.isMenuOpen = false;
+    },
+    toggleMenu: (state) => {
+      state.isMenuOpen = !state.isMenuOpen;
+    },
   },
 });
 
@@ -56,6 +67,9 @@ export const {
   togglePause, 
   setPaused,
   setShowPlayIcon,
-  setActiveVideoId 
+  setActiveVideoId,
+  openMenu,
+  closeMenu,
+  toggleMenu
 } = uiSlice.actions;
 export default uiSlice.reducer;
