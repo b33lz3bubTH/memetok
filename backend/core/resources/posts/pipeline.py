@@ -63,7 +63,7 @@ class UploadPipeline:
                 file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
                 file_hash = await asyncio.to_thread(_hash_file, file_path)
 
-                logger.info("uploading to streamlander post_id=%s filename=%s size=%d", context.post_id, filename, file_size)
+                logger.info("uploading to streamlander post_id=%s filename=%s content_type=%s size=%d", context.post_id, filename, content_type, file_size)
 
                 with open(file_path, "rb") as upload_file:
                     upload_result = await self.streamlander.upload(
@@ -150,7 +150,7 @@ class UploadPipeline:
                 "createdAt": now_utc(),
             }
             await self.errors_repo.insert(error_doc)
-            logger.info("logged upload error post_id=%s filename=%s", context.post_id, error.get("filename"))
+            logger.info("logged upload error post_id=%s filename=%s error=%s", context.post_id, error.get("filename"), error.get("error"))
 
     async def _cleanup_tmp_files(self, context: PipelineContext) -> None:
         try:

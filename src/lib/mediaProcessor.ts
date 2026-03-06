@@ -58,6 +58,12 @@ async function processImage(file: File, logoUrl: string): Promise<File> {
  * Videos are returned as-is.
  */
 export async function processMediaFile(file: File, logoUrl = '/logo.svg'): Promise<File> {
+  // If it's a GIF, skip processing (watermarking) as canvas only handles single frames
+  if (file.type === 'image/gif') {
+    console.log('[mediaProcessor] Skipping GIF processing to maintain animation.');
+    return file;
+  }
+
   if (file.type.startsWith('image/')) {
     console.log('[mediaProcessor] Processing image via Canvas...');
     return processImage(file, logoUrl);

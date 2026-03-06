@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from typing import List
+import mimetypes
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
@@ -158,9 +159,12 @@ async def upload_and_create_post(
     videos = []
     images = []
     for file in files:
-        content_type = file.content_type or ""
+        # Use mimetypes to guess if content_type is missing or to verify it
+        ct, _ = mimetypes.guess_type(file.filename or "")
+        content_type = file.content_type or ct or ""
+        
         is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
-        is_image = content_type.startswith("image/")
+        is_image = content_type.startswith("image/") or (file.filename and file.filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")))
 
         if not is_video and not is_image:
             raise HTTPException(status_code=400, detail=f"File {file.filename} is not a valid MP4 video or image")
@@ -194,13 +198,16 @@ async def upload_and_create_post(
     file_infos = []
     async with _UPLOAD_INGEST_SEMAPHORE:
         for file in files:
-            content_type = file.content_type or ""
+            # Use mimetypes for consistent content_type detection
+            ct, _ = mimetypes.guess_type(file.filename or "")
+            content_type = file.content_type or ct or ""
+            
             is_video = content_type == "video/mp4" or (file.filename and file.filename.lower().endswith(".mp4"))
             media_type = "video" if is_video else "image"
 
-            filename = file.filename or f"upload.{'mp4' if is_video else 'jpg'}"
-            if not any(filename.lower().endswith(ext) for ext in [".mp4", ".jpg", ".jpeg", ".png"]):
-                ext = ".mp4" if is_video else ".jpg"
+            filename = file.filename or f"upload.{'mp4' if is_video else ('gif' if content_type == 'image/gif' else 'jpg')}"
+            if not any(filename.lower().endswith(ext) for ext in [".mp4", ".jpg", ".jpeg", ".png", ".gif"]):
+                ext = ".mp4" if is_video else (".gif" if content_type == "image/gif" else ".jpg")
                 filename = f"{filename}{ext}"
 
             file_path = tmp_dir / filename
