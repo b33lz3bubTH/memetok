@@ -139,7 +139,7 @@ const UserProfile = () => {
               </p>
               <p className="text-white/60 text-sm mt-2">
                 {isUploader ? `${totalPosts} posts · ` : ""}
-                {totalSaved} saved
+                {totalSaved} liked & saved
               </p>
             </div>
           </div>
@@ -158,7 +158,7 @@ const UserProfile = () => {
             onClick={() => handleTabChange("saved")}
             className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${tab === "saved" ? "bg-white text-black shadow-lg" : "bg-white/5 text-white hover:bg-white/10"}`}
           >
-            Saved posts
+            Liked & Saved
           </button>
           {isUploader && (
             <button

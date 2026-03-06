@@ -157,6 +157,11 @@ class LikesRepository:
         cursor = mongo.db[LIKES_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
         return [d["postId"] async for d in cursor]
 
+    async def list_all_liked(self, user_id: str) -> Dict[str, datetime]:
+        mongo = get_mongo()
+        cursor = mongo.db[LIKES_COLLECTION].find({"userId": user_id}, {"_id": 0, "postId": 1, "createdAt": 1})
+        return {d["postId"]: d.get("createdAt", datetime.min) async for d in cursor}
+
 
 @dataclass
 class SavedPostsRepository:
@@ -197,6 +202,10 @@ class SavedPostsRepository:
         cursor = mongo.db[SAVED_POSTS_COLLECTION].find({"userId": user_id, "postId": {"$in": post_ids}}, {"_id": 0, "postId": 1})
         return [d["postId"] async for d in cursor]
 
+    async def list_all_saved(self, user_id: str) -> Dict[str, datetime]:
+        mongo = get_mongo()
+        cursor = mongo.db[SAVED_POSTS_COLLECTION].find({"userId": user_id}, {"_id": 0, "postId": 1, "createdAt": 1})
+        return {d["postId"]: d.get("createdAt", datetime.min) async for d in cursor}
 
 @dataclass
 class CommentsRepository:

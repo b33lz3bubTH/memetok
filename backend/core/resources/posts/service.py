@@ -72,7 +72,22 @@ class PostsService:
 
 
     async def list_saved_posts(self, user_id: str, take: int, skip: int) -> List[PostListDTO]:
-        post_ids = await self.saved_posts_repo.list_saved_post_ids(user_id=user_id, take=take, skip=skip)
+        saved_dict = await self.saved_posts_repo.list_all_saved(user_id=user_id)
+        liked_dict = await self.likes_repo.list_all_liked(user_id=user_id)
+        
+        merged = {}
+        for pid, dt in saved_dict.items():
+            merged[pid] = dt
+        for pid, dt in liked_dict.items():
+            if pid not in merged or dt > merged[pid]:
+                merged[pid] = dt
+        
+        # Sort by date descending
+        sorted_pairs = sorted(merged.items(), key=lambda x: x[1], reverse=True)
+        # Paginate
+        page_pairs = sorted_pairs[skip : skip + take]
+        post_ids = [pid for pid, dt in page_pairs]
+        
         if not post_ids:
             return []
 
@@ -83,12 +98,16 @@ class PostsService:
             post = by_id.get(post_id)
             if not post:
                 continue
-            post["savedByUser"] = True
+            post["savedByUser"] = post_id in saved_dict
+            post["likedByUser"] = post_id in liked_dict
             items.append(PostListDTO.model_validate(post))
         return items
 
     async def count_saved_posts(self, user_id: str) -> int:
-        return await self.saved_posts_repo.count_saved_posts(user_id=user_id)
+        saved_dict = await self.saved_posts_repo.list_all_saved(user_id=user_id)
+        liked_dict = await self.likes_repo.list_all_liked(user_id=user_id)
+        merged = set(saved_dict.keys()).union(liked_dict.keys())
+        return len(merged)
 
     async def get_post(self, post_id: str) -> PostDTO:
         doc = await self.posts_repo.find_by_id(post_id)
