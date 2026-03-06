@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from core.resources.uploaders.dtos import ApiKeyValidationRequest
 from core.resources.uploaders.service import UploaderService
 
 
@@ -18,7 +19,9 @@ class AccessControlService:
     async def validate_uploader(self, email: str, api_key: str) -> bool:
         if not api_key or not email:
             return False
-        return await self.uploader_service.validate_api_key(api_key=api_key, email=email)
+        
+        request = ApiKeyValidationRequest(email=email, apiKey=api_key)
+        return await self.uploader_service.validate_api_key(request)
 
     async def is_uploader_user(self, email: Optional[str]) -> bool:
         if not email:
