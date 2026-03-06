@@ -172,6 +172,9 @@ export const superAdminApi = {
     await apiClient.mutation.revokeApiKey({ uploaderId });
     return { revoked: true };
   },
+  async listAllUploadErrors(take = 50, skip = 0) {
+    return apiClient.query.listAllUploadErrors({ take, skip });
+  },
   setAdminKey(key: string) {
     apiClient.setSuperAdminKey(key);
   },

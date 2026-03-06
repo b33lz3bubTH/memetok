@@ -29,6 +29,7 @@ type QueryPayload = {
   [UploadersQueryAction.VALIDATE_API_KEY]: { email: string; apiKey: string };
   [UploadersQueryAction.GET_MY_ACCESS]: { email?: string };
   [PostsQueryAction.LIST_UPLOAD_ERRORS]: { take?: number; skip?: number; email?: string };
+  [PostsQueryAction.LIST_ALL_UPLOAD_ERRORS]: { take?: number; skip?: number };
 };
 
 export type ApiAuthor = {
@@ -261,6 +262,16 @@ class ApiClient {
         skip: number;
         total?: number;
       }>("query", PostsQueryAction.LIST_UPLOAD_ERRORS, payload, opts);
+    },
+    listAllUploadErrors: async (
+      payload: QueryPayload[typeof PostsQueryAction.LIST_ALL_UPLOAD_ERRORS] = {},
+    ) => {
+      return this.execute<{
+        items: ApiUploadError[];
+        take: number;
+        skip: number;
+        total?: number;
+      }>("query", PostsQueryAction.LIST_ALL_UPLOAD_ERRORS, payload);
     },
   };
 

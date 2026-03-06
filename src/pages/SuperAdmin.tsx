@@ -10,9 +10,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Plus,
+  FileWarning,
+  History,
+  Eye,
 } from "lucide-react";
 import { superAdminApi, SuperAdminUploader, postsApi } from "@/lib/api";
-import { ApiPost } from "@/lib/api-client";
+import { ApiPost, ApiUploadError } from "@/lib/api-client";
 import { env } from "@/lib/env";
 import { SuperAdminAuthModal } from "@/components/SuperAdminAuthModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +48,13 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(false);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
+  const [uploadErrors, setUploadErrors] = useState<ApiUploadError[]>([]);
+  const [errorsLoading, setErrorsLoading] = useState(false);
+  const [errorsPage, setErrorsPage] = useState(0);
+  const [errorsTake] = useState(10);
+  const [errorsTotal, setErrorsTotal] = useState(0);
+  const [selectedError, setSelectedError] = useState<ApiUploadError | null>(null);
+
   const loadUploaders = async () => {
     try {
       setLoading(true);
@@ -73,6 +83,25 @@ export default function SuperAdmin() {
       setPostsLoading(false);
     }
   };
+
+  const loadUploadErrors = async () => {
+    try {
+      setErrorsLoading(true);
+      const res = await superAdminApi.listAllUploadErrors(errorsTake, errorsPage * errorsTake);
+      setUploadErrors(res.items);
+      setErrorsTotal(res.total || 0);
+    } catch (e) {
+      toast.error("Failed to load upload logs: " + (e as Error).message);
+    } finally {
+      setErrorsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadUploadErrors();
+    }
+  }, [errorsPage, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -215,6 +244,13 @@ export default function SuperAdmin() {
             >
               <Film className="w-4 h-4 mr-2" />
               Content Management
+            </TabsTrigger>
+            <TabsTrigger
+              value="logs"
+              className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-black transition-all"
+            >
+              <History className="w-4 h-4 mr-2" />
+              Upload Logs
             </TabsTrigger>
           </TabsList>
 
@@ -484,8 +520,196 @@ export default function SuperAdmin() {
               )}
             </div>
           </TabsContent>
+
+          <TabsContent
+            value="logs"
+            className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500"
+          >
+            <div className="glass-morphism rounded-3xl border border-white/10 overflow-hidden bg-white/[0.01]">
+              <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold leading-none">
+                    Upload Error Logs
+                  </h2>
+                  <p className="text-sm text-white/40 mt-1">
+                    {errorsTotal} failures recorded
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+                    <button
+                      disabled={errorsPage === 0 || errorsLoading}
+                      onClick={() => setErrorsPage((p) => Math.max(0, p - 1))}
+                      className="px-3 py-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all text-xs font-bold"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs px-2 text-white/40">
+                      Page {errorsPage + 1}
+                    </span>
+                    <button
+                      disabled={(errorsPage + 1) * errorsTake >= errorsTotal || errorsLoading}
+                      onClick={() => setErrorsPage((p) => p + 1)}
+                      className="px-3 py-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all text-xs font-bold"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <button
+                    onClick={loadUploadErrors}
+                    className={`p-3 hover:bg-white/10 rounded-2xl transition-all ${errorsLoading ? "animate-spin" : ""}`}
+                  >
+                    <RefreshCw className="w-5 h-5 text-white/40" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white/[0.02] border-b border-white/5">
+                      <th className="px-8 py-5 text-xs font-black uppercase tracking-widest text-white/40">
+                        Timestamp
+                      </th>
+                      <th className="px-8 py-5 text-xs font-black uppercase tracking-widest text-white/40">
+                        User / Post ID
+                      </th>
+                      <th className="px-8 py-5 text-xs font-black uppercase tracking-widest text-white/40">
+                        Filename
+                      </th>
+                      <th className="px-8 py-5 text-xs font-black uppercase tracking-widest text-white/40">
+                        Error Message
+                      </th>
+                      <th className="px-8 py-5 text-xs font-black uppercase tracking-widest text-white/40 text-right">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {uploadErrors.map((err, idx) => (
+                      <tr
+                        key={err.postId + idx}
+                        className="group hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-8 py-4">
+                          <p className="text-xs text-white/60">
+                            {new Date(err.createdAt).toLocaleString()}
+                          </p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-white/80">
+                              User: {err.userId}
+                            </p>
+                            <p className="text-[10px] text-white/20 font-mono">
+                              Post: {err.postId}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4">
+                          <p className="text-sm text-white/60 truncate max-w-[150px]">
+                            {err.filename}
+                          </p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <p className="text-sm text-red-400/80 line-clamp-1 max-w-[300px]">
+                            {err.error}
+                          </p>
+                        </td>
+                        <td className="px-8 py-4 text-right">
+                          <Button
+                            onClick={() => setSelectedError(err)}
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl hover:bg-white/10"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {uploadErrors.length === 0 && !errorsLoading && (
+                <div className="p-32 text-center space-y-4">
+                  <CheckCircle2 className="w-16 h-16 text-emerald-500/20 mx-auto" />
+                  <p className="text-white/30 font-medium text-lg italic">
+                    Pure silence. No upload errors detected.
+                  </p>
+                </div>
+              )}
+
+              {errorsLoading && (
+                <div className="p-20 flex justify-center">
+                  <RefreshCw className="w-8 h-8 animate-spin text-white/20" />
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog
+        open={!!selectedError}
+        onOpenChange={() => setSelectedError(null)}
+      >
+        <AlertDialogContent className="bg-[#0c0c0e] border-white/10 rounded-3xl p-8 backdrop-blur-xl max-w-2xl">
+          <AlertDialogHeader className="space-y-3">
+            <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-2">
+              <FileWarning className="w-8 h-8 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold text-center">
+              Upload Error Details
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          {selectedError && (
+            <div className="mt-6 space-y-4 text-left">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <p className="text-[10px] text-white/30 uppercase font-black mb-1">Created At</p>
+                  <p className="text-sm font-medium">{new Date(selectedError.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <p className="text-[10px] text-white/30 uppercase font-black mb-1">User ID</p>
+                  <p className="text-sm font-medium truncate">{selectedError.userId}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <p className="text-[10px] text-white/30 uppercase font-black mb-1">Post ID</p>
+                  <p className="text-sm font-medium truncate">{selectedError.postId}</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                <p className="text-[10px] text-white/30 uppercase font-black mb-1">Filename</p>
+                <p className="text-sm font-medium">{selectedError.filename}</p>
+              </div>
+
+              <div className="bg-red-500/5 p-6 rounded-2xl border border-red-500/10">
+                <p className="text-[10px] text-red-400/50 uppercase font-black mb-2">Detailed Error Message</p>
+                <p className="text-sm text-red-200/90 font-mono leading-relaxed whitespace-pre-wrap">
+                  {selectedError.error}
+                </p>
+              </div>
+
+              {selectedError.hash && (
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <p className="text-[10px] text-white/30 uppercase font-black mb-1">File Hash</p>
+                  <p className="text-xs font-mono text-white/60">{selectedError.hash}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <AlertDialogFooter className="mt-8">
+            <AlertDialogCancel className="bg-white text-black border-none rounded-2xl px-10 h-12 font-bold hover:bg-white/90 transition-all w-full">
+              Dismiss
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!deletePostId}

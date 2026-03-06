@@ -33,3 +33,18 @@ class UploadErrorsRepository:
     async def count_by_user_id(self, user_id: str) -> int:
         mongo = get_mongo()
         return await mongo.db[UPLOAD_ERRORS_COLLECTION].count_documents({"userId": user_id})
+
+    async def find_all(self, limit: int = 50, skip: int = 0) -> List[Dict[str, Any]]:
+        mongo = get_mongo()
+        cursor = (
+            mongo.db[UPLOAD_ERRORS_COLLECTION]
+            .find({})
+            .sort("createdAt", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        return [d async for d in cursor]
+
+    async def count_all(self) -> int:
+        mongo = get_mongo()
+        return await mongo.db[UPLOAD_ERRORS_COLLECTION].count_documents({})

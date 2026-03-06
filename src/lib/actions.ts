@@ -6,6 +6,7 @@ export const PostsQueryAction = {
   LIST_COMMENTS: 'list_comments',
   LIST_SAVED_POSTS: 'list_saved_posts',
   LIST_UPLOAD_ERRORS: 'list_upload_errors',
+  LIST_ALL_UPLOAD_ERRORS: 'list_all_upload_errors',
 } as const;
 
 export const PostsMutationAction = {

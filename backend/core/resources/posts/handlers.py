@@ -253,14 +253,45 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
             # Convert MongoDB dicts (with _id) to clean dicts for API
             result_items = []
             for item in items:
-                clean_item = {k: v for k, v in item.items() if k != "_id"}
-                if "createdAt" in clean_item and not isinstance(clean_item["createdAt"], str):
-                    clean_item["createdAt"] = clean_item["createdAt"].isoformat()
+                clean_item: Dict[str, Any] = {k: v for k, v in item.items() if k != "_id"}
+                ca = clean_item.get("createdAt")
+                if ca and hasattr(ca, "isoformat"):
+                    clean_item["createdAt"] = ca.isoformat()
                 result_items.append(clean_item)
 
             return {"items": result_items, "take": take, "skip": skip, "total": total}
         except PyMongoError as e:
             logger.exception("list_upload_errors db error")
+            raise HTTPException(status_code=503, detail="db unavailable") from e
+
+    async def handle_list_all_upload_errors(payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            auth = payload.get("__auth", {})
+            is_super_admin = auth.get("is_super_admin", False) if isinstance(auth, dict) else False
+            if not is_super_admin:
+                raise HTTPException(status_code=403, detail="Super admin access required")
+
+            take = int(payload.get("take", 50))
+            skip = int(payload.get("skip", 0))
+            take = max(1, min(take, 100))
+            skip = max(0, skip)
+
+            logger.info("list_all_upload_errors take=%s skip=%s", take, skip)
+            items = await errors_repo.find_all(limit=take, skip=skip)
+            total = await errors_repo.count_all()
+
+            result_items = []
+            for item in items:
+                clean_item: Dict[str, Any] = {k: v for k, v in item.items() if k != "_id"}
+                clean_item["id"] = str(item["_id"])
+                ca = clean_item.get("createdAt")
+                if ca and hasattr(ca, "isoformat"):
+                    clean_item["createdAt"] = ca.isoformat()
+                result_items.append(clean_item)
+
+            return {"items": result_items, "take": take, "skip": skip, "total": total}
+        except PyMongoError as e:
+            logger.exception("list_all_upload_errors db error")
             raise HTTPException(status_code=503, detail="db unavailable") from e
 
     query_registry.register(PostsQueryAction.LIST_POSTS, handle_list_posts)
@@ -271,6 +302,7 @@ def register_posts_handlers(svc: PostsService, errors_repo: UploadErrorsReposito
     query_registry.register(PostsQueryAction.LIST_SAVED_POSTS, handle_list_saved_posts)
     query_registry.register(PostsQueryAction.SEARCH_POSTS, handle_search_posts)
     query_registry.register(PostsQueryAction.LIST_UPLOAD_ERRORS, handle_list_upload_errors)
+    query_registry.register(PostsQueryAction.LIST_ALL_UPLOAD_ERRORS, handle_list_all_upload_errors)
 
     mutation_registry.register(PostsMutationAction.TOGGLE_LIKE, handle_toggle_like)
     mutation_registry.register(PostsMutationAction.ADD_COMMENT, handle_add_comment)
