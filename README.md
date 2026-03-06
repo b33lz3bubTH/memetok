@@ -4,3 +4,5 @@
 - ideal project for a 6usd droplet or any cheap hosting.
 - 1k-2k seamless media serving to concurrent users
 - fair hot post analytics system
+
+- sales playbook for NSFW B2B use cases: `docs/nsfw-sales-playbook.md`
