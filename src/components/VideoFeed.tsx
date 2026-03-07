@@ -3,11 +3,12 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchFeed, fetchMoreFeed, setCurrentVideoIndex } from '@/store/slices/feedSlice';
 import { initializeTheme } from '@/store/slices/themeSlice';
 import VideoCard from './VideoCard';
+import AdCard from './AdCard';
 import VideoPlaceholder from './VideoPlaceholder';
 import CommentDrawer from './CommentDrawer';
 import MenuDrawer from './MenuDrawer';
 import Loader from './Loader';
-import { APP_CONFIG } from '@/config/appConfig';
+import { APP_CONFIG, VideoPost } from '@/config/appConfig';
 import { useVideoPreload } from '@/hooks/useVideoPreload';
 import { Menu, Volume2, VolumeX } from 'lucide-react';
 import { openMenu, toggleMute } from '@/store/slices/uiSlice';
@@ -60,6 +61,10 @@ const VideoFeed = () => {
     root.style.setProperty('--theme-background', currentTheme.background);
     root.style.setProperty('--theme-accent', currentTheme.accent);
     root.style.setProperty('--theme-gradient', currentTheme.gradient);
+
+    // Apply UI Config
+    root.style.setProperty('--overlay-icon-size', `${APP_CONFIG.ui.overlayIconSize}px`);
+    root.style.setProperty('--overlay-btn-size', `${APP_CONFIG.ui.overlayBtnSize}px`);
   }, [currentTheme]);
 
   // Intersection Observer for video visibility
@@ -116,11 +121,22 @@ No uploads available yet. Check back soon.
                 return <VideoPlaceholder key={config.video.id} video={config.video} dataIndex={config.index} />;
               }
 
-              // Render actual video component
+              // Render actual component (Video or Ad)
+              if (config.video.isAd) {
+                return (
+                  <AdCard
+                    key={config.video.id}
+                    ad={config.video}
+                    isActive={config.isActive}
+                    dataIndex={config.index}
+                  />
+                );
+              }
+
               return (
                 <VideoCard
                   key={config.video.id}
-                  video={config.video}
+                  video={config.video as VideoPost}
                   isActive={config.isActive}
                   dataIndex={config.index}
                   preloadStrategy={config.preloadStrategy}

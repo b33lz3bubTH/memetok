@@ -332,25 +332,27 @@ const VideoCard = ({
         hasMultipleImages ? (
           <div className="absolute inset-0 w-full h-full flex items-center justify-center">
             {/* Instagram-style Image Counter */}
-            <div className="absolute top-20 right-4 z-30 bg-black/50 backdrop-blur-md rounded-full px-3 py-1 text-white/90 text-sm font-medium border border-white/10 shadow-sm transition-opacity duration-300">
+            <div className="absolute top-20 right-4 z-30 bg-black/50 backdrop-blur-md rounded-full px-3 py-1 text-white/90 text-xs font-medium border border-white/10 shadow-sm transition-opacity duration-300">
               {currentImageIndex + 1} / {imageItems.length}
             </div>
 
             <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="w-full h-full">
-              <CarouselContent className="h-full -ml-0">
+              <CarouselContent className="h-full ml-0">
                 {imageItems.map((item) => (
                   <CarouselItem
                     key={item.id}
-                    className="h-full pl-0 basis-full"
+                    className="h-full pl-0 basis-full flex items-center justify-center p-0"
                   >
-                    <img
-                      src={mediaApi.imageUrl(item.id)}
-                      className="w-full h-full object-contain"
-                      alt={video.title}
-                      onTouchStart={handleTouchStart}
-                      onDoubleClick={handleDoubleClick}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
+                    <div className="w-full h-full flex items-center justify-center relative bg-black/20">
+                      <img
+                        src={mediaApi.imageUrl(item.id)}
+                        className="w-full h-full object-contain pointer-events-auto"
+                        alt={video.title}
+                        onTouchStart={handleTouchStart}
+                        onDoubleClick={handleDoubleClick}
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
+                    </div>
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -417,7 +419,7 @@ const VideoCard = ({
               background: "var(--theme-gradient)",
             }}
           />
-          <div className="absolute -top-6 left-2 text-xs text-white/60 font-mono">
+          <div className="absolute -top-6 left-2 text-[10px] text-white/60 font-mono">
             Preloading: {bufferProgress.toFixed(0)}%
           </div>
         </div>

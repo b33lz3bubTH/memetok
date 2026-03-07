@@ -283,26 +283,26 @@ export default function CreatePostModal({
     }
 
     return (
-      <div className="px-4 sm:px-10 flex items-center justify-center">
-        <Carousel opts={{ loop: true }} className="w-full">
-          <CarouselContent className="-ml-0">
+      <div className="px-4 sm:px-10 flex items-center justify-center w-full">
+        <Carousel opts={{ loop: true }} className="w-full max-w-sm">
+          <CarouselContent className="ml-0">
             {previews.map((p) => (
-              <CarouselItem key={p.url} className="pl-0 basis-full">
-                <div className="w-full flex items-center justify-center h-full">
+              <CarouselItem key={p.url} className="pl-0 basis-full flex flex-col items-center justify-center h-full">
+                <div className="w-full flex items-center justify-center h-[420px] bg-black/5 rounded-lg overflow-hidden border border-white/10">
                   <img
                     src={p.url}
-                    className="w-full rounded-lg max-h-[420px] object-contain bg-black"
+                    className="w-full h-full object-contain shadow-2xl"
                     alt={p.file.name}
                   />
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground truncate text-center">
+                <div className="mt-3 text-[10px] text-muted-foreground truncate text-center font-medium bg-muted/50 px-2 py-0.5 rounded-full">
                   {p.file.name}
                 </div>
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="hidden sm:flex" />
-          <CarouselNext className="hidden sm:flex" />
+          <CarouselPrevious className="hidden sm:flex -left-4" />
+          <CarouselNext className="hidden sm:flex -right-4" />
         </Carousel>
       </div>
     );

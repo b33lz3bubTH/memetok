@@ -100,7 +100,7 @@ const MenuDrawer = () => {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-white font-bold text-xl">M</span>
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">MemeTok</span>
+            <span className="text-white font-bold text-base tracking-tight">MemeTok</span>
           </div>
           <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10">
             <X className="w-5 h-5 text-white/70" />
@@ -135,13 +135,13 @@ const MenuDrawer = () => {
                     >
                       <div className="flex items-center gap-3">
                         <Layers className={`w-4 h-4 transition-colors ${isExpanded ? 'text-primary' : 'text-white/20'}`} />
-                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-[13px] font-medium">{cat.name}</span>
                       </div>
                       <ChevronDown className={`w-3.5 h-3.5 text-white/20 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     <div className={`pl-9 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-40 opacity-100 py-1' : 'max-h-0 opacity-0'}`}>
                       {cat.sub.map(sub => (
-                        <button key={sub} className="w-full text-left py-1.5 text-xs text-white/40 hover:text-white/80">
+                        <button key={sub} className="w-full text-left py-1.5 text-[11px] text-white/40 hover:text-white/80">
                           {sub}
                         </button>
                       ))}
@@ -156,10 +156,10 @@ const MenuDrawer = () => {
           <div className="px-4 mb-4">
             <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[2px] mb-2 px-1">Support</h3>
             <div className="grid grid-cols-1 gap-1">
-              <button onClick={() => setActiveStaticPage('about')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Info className="w-4 h-4" /> <span className="text-sm">About</span></button>
-              <button onClick={() => setActiveStaticPage('privacy')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Shield className="w-4 h-4" /> <span className="text-sm">Privacy</span></button>
-              <button onClick={() => setActiveStaticPage('contact')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Mail className="w-4 h-4" /> <span className="text-sm">Contact</span></button>
-              <button onClick={() => setActiveStaticPage('dmca')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><FileText className="w-4 h-4" /> <span className="text-sm">DMCA</span></button>
+              <button onClick={() => setActiveStaticPage('about')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Info className="w-4 h-4" /> <span className="text-[13px]">About</span></button>
+              <button onClick={() => setActiveStaticPage('privacy')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Shield className="w-4 h-4" /> <span className="text-[13px]">Privacy</span></button>
+              <button onClick={() => setActiveStaticPage('contact')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><Mail className="w-4 h-4" /> <span className="text-[13px]">Contact</span></button>
+              <button onClick={() => setActiveStaticPage('dmca')} className="flex items-center gap-3 px-2 py-2 rounded-lg text-white/70 hover:bg-white/5"><FileText className="w-4 h-4" /> <span className="text-[13px]">DMCA</span></button>
             </div>
           </div>
         </div>

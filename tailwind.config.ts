@@ -94,6 +94,9 @@ export default {
         "slide-up": "slide-up 0.3s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
+      transitionTimingFunction: {
+        "expo": "cubic-bezier(0.19, 1, 0.22, 1)",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

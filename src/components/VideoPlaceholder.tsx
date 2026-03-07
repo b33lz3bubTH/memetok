@@ -1,7 +1,7 @@
-import { VideoPost } from '@/config/appConfig';
+import { FeedItem, VideoPost } from '@/config/appConfig';
 
 interface VideoPlaceholderProps {
-  video: VideoPost;
+  video: FeedItem;
   dataIndex: number;
 }
 
@@ -19,7 +19,8 @@ const VideoPlaceholder = ({ video, dataIndex }: VideoPlaceholderProps) => {
       <div 
         className="absolute inset-0 bg-cover bg-center"
         style={{ 
-          backgroundImage: `url(${video.extras.thumbnail})`,
+          backgroundImage: video.isAd ? 'none' : `url(${(video as VideoPost).extras.thumbnail})`,
+          backgroundColor: video.isAd ? '#000' : 'transparent',
         }}
       />
       
@@ -29,7 +30,7 @@ const VideoPlaceholder = ({ video, dataIndex }: VideoPlaceholderProps) => {
       {/* Minimal info overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <p className="text-white/60 text-sm font-medium truncate">
-          {video.extras.title}
+          {video.isAd ? 'Sponsored' : (video as VideoPost).extras.title}
         </p>
       </div>
     </div>

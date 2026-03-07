@@ -1,3 +1,5 @@
+import { AdConfig } from "./adConfig";
+
 // Central Configuration File
 // All app data, themes, and mock content
 
@@ -109,6 +111,8 @@ export interface VideoPost {
   };
 }
 
+export type FeedItem = (VideoPost & { isAd?: false }) | (AdConfig & { isAd: true });
+
 export const APP_CONFIG = {
   appName: 'Memetok - New Media Libs',
   version: '2.0.0',
@@ -117,6 +121,10 @@ export const APP_CONFIG = {
   animationDuration: 0.3,
   initialPostsToFetch: 3,
   postsPerPage: 3,
+  ui: {
+    overlayIconSize: 22, // Size in pixels
+    overlayBtnSize: 40,  // Size in pixels
+  },
   staticPages: {
     about: {
       title: "About MemeTok",

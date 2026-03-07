@@ -131,7 +131,7 @@ const CommentDrawer = () => {
       <div ref={drawerRef} className="comment-drawer">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-white font-bold text-lg">
+          <h2 className="text-white font-bold text-base">
             {comments.length} Comments
           </h2>
           <button
@@ -155,11 +155,11 @@ const CommentDrawer = () => {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-white font-medium text-sm">
+                    <span className="text-white font-medium text-[13px]">
                       {comment.firstName || comment.userId.slice(-6)}
                     </span>
                   </div>
-                  <p className="text-white/80 text-sm">{comment.text}</p>
+                  <p className="text-white/80 text-[13px]">{comment.text}</p>
                 </div>
               </div>
             ))}
@@ -207,7 +207,7 @@ const CommentDrawer = () => {
                     target.style.height = "auto";
                     target.style.height = `${target.scrollHeight}px`;
                   }}
-                  className="flex-1 bg-transparent text-[15px] leading-relaxed text-white placeholder:text-muted-foreground outline-none resize-none py-1 overflow-y-auto hide-scrollbar break-words"
+                  className="flex-1 bg-transparent text-sm leading-relaxed text-white placeholder:text-muted-foreground outline-none resize-none py-1 overflow-y-auto hide-scrollbar break-words"
                 />
               </div>
               <button

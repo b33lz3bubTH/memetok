@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { VideoPost } from '@/config/appConfig';
+import { FeedItem, VideoPost } from '@/config/appConfig';
 
 export type PreloadStrategy = 'auto' | 'metadata' | 'none';
 
 export interface VideoRenderConfig {
-  video: VideoPost;
+  video: FeedItem;
   index: number;
   shouldMount: boolean;
   isActive: boolean;
@@ -31,7 +31,7 @@ interface UseVideoPreloadReturn {
  * - All others: NOT mounted, show placeholder
  */
 export const useVideoPreload = (
-  videos: VideoPost[],
+  videos: FeedItem[],
   currentIndex: number
 ): UseVideoPreloadReturn => {
   const renderConfigs = useMemo(() => {
@@ -73,7 +73,8 @@ export const useVideoPreload = (
   const getPlaceholderStyle = (index: number) => {
     const config = renderConfigs[index];
     if (config && !config.shouldMount) {
-      return { thumbnail: config.video.extras.thumbnail };
+      if (config.video.isAd) return { thumbnail: '' };
+      return { thumbnail: (config.video as VideoPost).extras.thumbnail };
     }
     return null;
   };

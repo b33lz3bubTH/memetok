@@ -1,9 +1,10 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { VideoPost } from '@/config/appConfig';
+import { VideoPost, FeedItem } from '@/config/appConfig';
 import { media, postsApi, Post as ApiPost } from '@/lib/api';
+import { adGenerator, AD_INTERVAL } from '@/config/adConfig';
 
 interface FeedState {
-  videos: VideoPost[];
+  videos: FeedItem[];
   currentVideoIndex: number;
   likedVideos: string[];
   savedVideos: string[];
@@ -89,7 +90,7 @@ const feedSlice = createSlice({
     loadVideos: (state) => {
       state.isLoading = true;
     },
-    setVideos: (state, action: PayloadAction<VideoPost[]>) => {
+    setVideos: (state, action: PayloadAction<FeedItem[]>) => {
       state.videos = action.payload;
       state.isLoading = false;
     },
@@ -102,39 +103,51 @@ const feedSlice = createSlice({
       
       if (isLiked) {
         state.likedVideos = state.likedVideos.filter(id => id !== videoId);
-        const video = state.videos.find(v => v.id === videoId);
-        if (video) video.stats.likes -= 1;
+        const item = state.videos.find(v => v.id === videoId);
+        if (item && !item.isAd) {
+          (item as VideoPost).stats.likes -= 1;
+        }
       } else {
         state.likedVideos.push(videoId);
-        const video = state.videos.find(v => v.id === videoId);
-        if (video) video.stats.likes += 1;
+        const item = state.videos.find(v => v.id === videoId);
+        if (item && !item.isAd) {
+          (item as VideoPost).stats.likes += 1;
+        }
       }
     },
     setLikesCount: (state, action: PayloadAction<{ videoId: string; likes: number }>) => {
       const { videoId, likes } = action.payload;
-      const video = state.videos.find(v => v.id === videoId);
-      if (video) video.stats.likes = likes;
+      const item = state.videos.find(v => v.id === videoId);
+      if (item && !item.isAd) {
+        (item as VideoPost).stats.likes = likes;
+      }
     },
     setLikedState: (state, action: PayloadAction<{ videoId: string; liked: boolean }>) => {
       const { videoId, liked } = action.payload;
       const has = state.likedVideos.includes(videoId);
       if (liked && !has) state.likedVideos.push(videoId);
       if (!liked && has) state.likedVideos = state.likedVideos.filter(id => id !== videoId);
-      const video = state.videos.find(v => v.id === videoId);
-      if (video) video.likedByUser = liked;
+      const item = state.videos.find(v => v.id === videoId);
+      if (item && !item.isAd) {
+        (item as VideoPost).likedByUser = liked;
+      }
     },
     setSavedState: (state, action: PayloadAction<{ videoId: string; saved: boolean }>) => {
       const { videoId, saved } = action.payload;
       const has = state.savedVideos.includes(videoId);
       if (saved && !has) state.savedVideos.push(videoId);
       if (!saved && has) state.savedVideos = state.savedVideos.filter(id => id !== videoId);
-      const video = state.videos.find(v => v.id === videoId);
-      if (video) video.savedByUser = saved;
+      const item = state.videos.find(v => v.id === videoId);
+      if (item && !item.isAd) {
+        (item as VideoPost).savedByUser = saved;
+      }
     },
     incCommentsCount: (state, action: PayloadAction<{ videoId: string; delta: number }>) => {
       const { videoId, delta } = action.payload;
-      const video = state.videos.find(v => v.id === videoId);
-      if (video) video.stats.comments += delta;
+      const item = state.videos.find(v => v.id === videoId);
+      if (item && !item.isAd) {
+        (item as VideoPost).stats.comments += delta;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -142,7 +155,17 @@ const feedSlice = createSlice({
       state.isLoading = true;
     });
     builder.addCase(fetchFeed.fulfilled, (state, action) => {
-      state.videos = action.payload.videos;
+      const videos: FeedItem[] = [];
+      const ads = adGenerator();
+      
+      action.payload.videos.forEach((video, index) => {
+        videos.push(video);
+        if ((index + 1) % AD_INTERVAL === 0) {
+          videos.push(ads.next().value as FeedItem);
+        }
+      });
+
+      state.videos = videos;
       state.skip = action.payload.skip;
       state.hasMore = action.payload.hasMore;
       state.likedVideos = action.payload.likedVideoIds;
@@ -156,9 +179,26 @@ const feedSlice = createSlice({
       state.isLoadingMore = true;
     });
     builder.addCase(fetchMoreFeed.fulfilled, (state, action) => {
-      const existingIds = new Set(state.videos.map(v => v.id));
+      const existingIds = new Set(state.videos.map(v => v.isAd ? v.id : v.id)); // Ads also have IDs
       const newVideos = action.payload.videos.filter(v => !existingIds.has(v.id));
-      state.videos = [...state.videos, ...newVideos];
+      
+      const ads = adGenerator();
+      // To maintain round robin across loads, we might need to know how many ads were already shown
+      const existingAdsCount = state.videos.filter(v => v.isAd).length;
+      // Skip already shown ads in the generator
+      for(let i=0; i<existingAdsCount; i++) ads.next();
+
+      const combined: FeedItem[] = [...state.videos];
+      const videoCountBefore = state.videos.filter(v => !v.isAd).length;
+
+      newVideos.forEach((video, index) => {
+        combined.push(video);
+        if ((videoCountBefore + index + 1) % AD_INTERVAL === 0) {
+          combined.push(ads.next().value as FeedItem);
+        }
+      });
+
+      state.videos = combined;
       state.skip = action.payload.skip;
       state.hasMore = action.payload.hasMore;
       state.likedVideos = Array.from(new Set([...state.likedVideos, ...action.payload.likedVideoIds]));

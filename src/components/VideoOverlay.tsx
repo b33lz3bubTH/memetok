@@ -16,6 +16,7 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [currentCommentIndex, setCurrentCommentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (activeVideoId === video.id) {
@@ -84,21 +85,37 @@ const VideoOverlay = ({ video }: VideoOverlayProps) => {
       <div className="relative z-10 text-left">
         {/* Username */}
         <div className="flex items-start justify-start gap-2 mb-2">
-          <span className="text-white font-bold text-base">
+          <span className="text-white font-bold text-sm">
             @{video.author.username}
           </span>
         </div>
 
         {/* Title */}
-        <h3 className="text-white font-bold text-lg mb-1 line-clamp-1">
+        <h3 className="text-white font-bold text-base mb-1 line-clamp-1">
           {video.extras.title}
         </h3>
 
-        {/* Description - show 2 lines normally, full when comments open */}
+        {/* Description - Expandable 'Show More' logic */}
         {hasDescription && (
-          <p className={`text-white/90 text-sm mb-3 ${isCommentsOpen ? '' : 'line-clamp-2'}`}>
-            {video.description}
-          </p>
+          <div className="mb-3 relative group/desc">
+            <div 
+              className={`text-white/90 text-sm leading-[1.4] pr-4 drop-shadow-md font-normal transition-all duration-300 ease-in-out scrollbar-none
+                ${isExpanded ? 'max-h-[250px] overflow-y-auto pb-4' : 'line-clamp-2 overflow-hidden'}`}
+            >
+              {video.description}
+            </div>
+            {video.description.length > 80 && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="text-white font-bold text-xs mt-1 bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-sm hover:bg-black/40 transition-colors"
+              >
+                {isExpanded ? 'Show less' : 'more'}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Comments Summary (Animated Carousel) */}

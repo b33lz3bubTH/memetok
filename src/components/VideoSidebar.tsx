@@ -153,7 +153,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <SignInButton mode="modal">
           <button className="action-btn">
             <div ref={heartRef} className="action-btn-icon relative">
-              <Heart className="w-7 h-7 transition-colors text-white" fill="none" />
+              <Heart className="transition-colors text-white" fill="none" />
               <div ref={burstContainerRef} className="like-burst-container" />
             </div>
           </button>
@@ -163,10 +163,10 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <button className="action-btn" onClick={handleLike} disabled={isFetchingStatus}>
           <div ref={heartRef} className={`action-btn-icon relative ${isFetchingStatus ? 'opacity-50' : ''}`}>
             {isFetchingStatus ? (
-              <Loader2 className="w-7 h-7 text-white animate-spin" />
+              <Loader2 className="text-white animate-spin" />
             ) : (
               <Heart
-                className={`w-7 h-7 transition-colors ${isLiked ? 'heart-filled' : 'text-white'}`}
+                className={`transition-colors ${isLiked ? 'heart-filled' : 'text-white'}`}
                 fill={isLiked ? 'currentColor' : 'none'}
               />
             )}
@@ -178,7 +178,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       {/* Comment Button */}
       <button className="action-btn" onClick={handleComment}>
         <div className="action-btn-icon">
-          <MessageCircle className="w-7 h-7 text-white" />
+          <MessageCircle className="text-white" />
         </div>
       </button>
 
@@ -188,7 +188,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <SignInButton mode="modal">
           <button className="action-btn">
             <div className="action-btn-icon">
-              <Bookmark className="w-7 h-7 text-white" />
+              <Bookmark className="text-white" />
             </div>
           </button>
         </SignInButton>
@@ -197,9 +197,9 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
         <button className="action-btn" onClick={handleSave} disabled={isFetchingStatus}>
           <div className={`action-btn-icon ${isFetchingStatus ? 'opacity-50' : ''}`}>
             {isFetchingStatus ? (
-              <Loader2 className="w-7 h-7 text-white animate-spin" />
+              <Loader2 className="text-white animate-spin" />
             ) : (
-              <Bookmark className={`w-7 h-7 ${isSaved ? 'text-yellow-300' : 'text-white'}`} fill={isSaved ? 'currentColor' : 'none'} />
+              <Bookmark className={`${isSaved ? 'text-yellow-300' : 'text-white'}`} fill={isSaved ? 'currentColor' : 'none'} />
             )}
           </div>
         </button>
@@ -207,7 +207,7 @@ const VideoSidebar = ({ video, isPlaying }: VideoSidebarProps) => {
       {/* Share Button */}
       <button className="action-btn" onClick={handleShare}>
         <div className="action-btn-icon">
-          <Share2 className="w-7 h-7 text-white" />
+          <Share2 className="text-white" />
         </div>
       </button>
 
